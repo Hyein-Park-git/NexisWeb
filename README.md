@@ -1,6 +1,6 @@
 # NexisWeb
 
-**NEXIS Monitoring System**
+**NEXIS Monitoring Platform**
 
 <img width="1280" height="819" alt="1" src="https://github.com/user-attachments/assets/89ad98d5-886b-46fd-8b4e-336ea8679bea" />
 
