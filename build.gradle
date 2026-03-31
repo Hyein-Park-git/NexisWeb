@@ -1,0 +1,104 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.5.1'
+    id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.nexis'
+version = '1.0'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
+    implementation 'org.thymeleaf.extras:thymeleaf-extras-springsecurity6'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+    runtimeOnly 'com.mysql:mysql-connector-j'
+    runtimeOnly 'org.mariadb.jdbc:mariadb-java-client'
+    runtimeOnly 'org.postgresql:postgresql'
+    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.security:spring-security-test'
+}
+
+springBoot {
+    mainClass = 'com.nexis.web.NexisWebApplication'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+    exclude '**/DemoApplicationTests*'
+}
+
+bootJar {
+    archiveFileName = 'nexis-web.jar'
+
+    // ✅ 배포용 리소스 폴더 제외
+    exclude 'deploy.linux/**'
+    exclude 'deploy.windows/**'
+    exclude 'deploy/**'
+}
+
+jar {
+    enabled = false
+}
+
+/* ════════════════════════════════════════════
+   RPM 빌드 준비 (파일 복사)
+════════════════════════════════════════════ */
+task prepareRpm(dependsOn: bootJar) {
+    doLast {
+        def rpmRoot = "${System.getProperty('user.home')}/rpmbuild"
+        new File("${rpmRoot}/SOURCES").mkdirs()
+        new File("${rpmRoot}/SPECS").mkdirs()
+        new File("${rpmRoot}/BUILD").mkdirs()
+        new File("${rpmRoot}/RPMS").mkdirs()
+        new File("${rpmRoot}/SRPMS").mkdirs()
+
+        def deployDir = "${projectDir}/src/main/resources/deploy/linux"
+
+        // ✅ 파일 복사 헬퍼
+        def cp = { String from, String to ->
+            java.nio.file.Files.copy(
+                new File(from).toPath(),
+                new File(to).toPath(),
+                java.nio.file.StandardCopyOption.REPLACE_EXISTING
+            )
+        }
+
+        cp("${projectDir}/build/libs/nexis-web.jar",  "${rpmRoot}/SOURCES/nexis-web.jar")
+        cp("${deployDir}/nexis-web.spec",             "${rpmRoot}/SPECS/nexis-web.spec")
+        cp("${deployDir}/nexis.conf",                 "${rpmRoot}/SOURCES/nexis.conf")
+        cp("${deployDir}/nexis-web.service",          "${rpmRoot}/SOURCES/nexis-web.service")
+        cp("${deployDir}/application.properties",     "${rpmRoot}/SOURCES/application.properties")
+
+        println "✅ 파일 복사 완료 → ${rpmRoot}"
+    }
+}
+
+/* ════════════════════════════════════════════
+   RPM 빌드 실행
+════════════════════════════════════════════ */
+task buildRpm(type: Exec, dependsOn: prepareRpm) {
+    commandLine 'rpmbuild', '-bb',
+        "${System.getProperty('user.home')}/rpmbuild/SPECS/nexis-web.spec"
+}

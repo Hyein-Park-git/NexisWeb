@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="content">
+
+  <input type="hidden" id="canWriteData" th:value="${canWriteAdmin}">
+
+  <!-- ══ Add Group 모달 ══ -->
+  <div id="addGroupModal" class="modal-backdrop" style="display:none;">
+    <div class="modal-box" style="max-width:460px;">
+      <div class="modal-head">
+        <span class="modal-title" id="groupModalTitle">Add User Group</span>
+        <button class="modal-close" onclick="closeModal('addGroupModal')">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <line x1="1" y1="1" x2="13" y2="13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+            <line x1="13" y1="1" x2="1"  y2="13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editGroupId">
+        <div class="form-group"><label class="form-label">Group Name *</label><input type="text" class="form-control" id="groupName" placeholder="e.g. Monitoring Team"></div>
+        <div class="form-group"><label class="form-label">Description</label><input type="text" class="form-control" id="groupDesc" placeholder="Optional"></div>
+        <div id="groupModalError" class="modal-error" style="display:none;"></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-secondary" onclick="closeModal('addGroupModal')">Cancel</button>
+        <button class="btn btn-primary" onclick="submitGroup()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ Add Members 모달 ══ -->
+  <div id="addMemberModal" class="modal-backdrop" style="display:none;">
+    <div class="modal-box" style="max-width:560px;">
+      <div class="modal-head">
+        <span class="modal-title">Add Users to Group</span>
+        <button class="modal-close" onclick="closeModal('addMemberModal')">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <line x1="1" y1="1" x2="13" y2="13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+            <line x1="13" y1="1" x2="1"  y2="13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body" style="padding:16px 20px;">
+        <input type="text" class="search-input" id="memberSearch"
+               placeholder="Search users…" oninput="filterMemberList(this.value)"
+               style="width:100%;margin-bottom:10px;">
+        <div id="memberUserList" style="display:flex;flex-direction:column;gap:4px;max-height:360px;overflow-y:auto;"></div>
+        <div id="addMemberError" class="modal-error" style="display:none;margin-top:8px;"></div>
+      </div>
+      <div class="modal-foot">
+        <span style="font-size:12px;color:var(--text-muted);flex:1;" id="memberSelectCount"></span>
+        <button class="btn btn-secondary" onclick="closeModal('addMemberModal')">Cancel</button>
+        <button class="btn btn-primary" onclick="submitAddMembers()">Add Selected</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ Group Detail 패널 ══ -->
+  <div id="detailPanel" style="display:none;margin-bottom:16px;">
+    <div class="card">
+      <div class="card-header" style="justify-content:space-between;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <button class="btn btn-secondary btn-sm" onclick="closeDetail()">← Back</button>
+          <span class="card-title" id="detailGroupName">—</span>
+          <span style="font-size:12.5px;color:var(--text-muted);" id="detailGroupDesc"></span>
+        </div>
+        <div id="detailActionBtns" style="display:flex;gap:6px;">
+          <button th:if="${canWriteAdmin}" class="btn btn-secondary btn-sm" onclick="openEditGroup()">Edit</button>
+          <button th:if="${canWriteAdmin}" class="btn btn-primary btn-sm"   onclick="openAddMember()">+ Add Users</button>
+        </div>
+      </div>
+
+      <!-- 탭 -->
+      <div class="tab-bar" style="padding:0 18px;border-bottom:1px solid var(--border);">
+        <button class="tab-btn tab-btn--active" id="dtab-members"     onclick="switchDetailTab('members')">Members</button>
+        <button class="tab-btn"                 id="dtab-permissions" onclick="switchDetailTab('permissions')">Permissions</button>
+      </div>
+
+      <!-- Members 탭 -->
+      <div id="dpane-members">
+        <table class="data-table" id="memberTable">
+          <thead>
+            <tr>
+              <th style="width:36px;"><input type="checkbox" id="checkAllMembers" onchange="toggleAllMembers(this)"></th>
+              <th>Username</th><th>Full Name</th><th>Role</th><th>Status</th><th style="width:80px;"></th>
+            </tr>
+          </thead>
+          <tbody id="memberTableBody">
+            <tr><td colspan="6" class="table-empty">Loading...</td></tr>
+          </tbody>
+        </table>
+        <div th:if="${canWriteAdmin}"
+             style="display:flex;align-items:center;gap:8px;padding:10px 18px;border-top:1px solid var(--border);background:var(--raised);">
+          <span style="font-size:12.5px;color:var(--text-muted);flex:1;" id="memberBulkCount"></span>
+          <button class="btn btn-danger btn-sm" id="btnRemoveMembers" onclick="removeSelectedMembers()" disabled>Remove from Group</button>
+        </div>
+      </div>
+
+      <!-- Permissions 탭 -->
+      <div id="dpane-permissions" style="display:none;padding:24px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;max-width:760px;">
+
+          <!-- 메뉴 접근 권한 -->
+          <div>
+            <div style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;">Menu Access</div>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <div th:each="res : ${ {'dashboard','monitoring','configuration','administration'} }"
+                   style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border:1px solid var(--border);border-radius:6px;background:var(--raised);">
+                <span style="font-size:13px;font-weight:500;color:var(--text);text-transform:capitalize;" th:text="${res}">—</span>
+                <div style="display:flex;gap:0;border-radius:4px;overflow:hidden;border:1px solid var(--border);">
+                  <button type="button" class="perm-btn"
+                          th:attr="data-res=${res},data-level='none'"
+                          th:disabled="${!canWriteAdmin}"
+                          style="padding:4px 10px;font-size:11.5px;font-weight:600;border:none;cursor:pointer;border-right:1px solid var(--border);background:var(--raised);color:var(--text);"
+                          onclick="setPermLevel(this)">None</button>
+                  <button type="button" class="perm-btn"
+                          th:attr="data-res=${res},data-level='read'"
+                          th:disabled="${!canWriteAdmin}"
+                          style="padding:4px 10px;font-size:11.5px;font-weight:600;border:none;cursor:pointer;border-right:1px solid var(--border);background:var(--raised);color:var(--text);"
+                          onclick="setPermLevel(this)">Read</button>
+                  <button type="button" class="perm-btn"
+                          th:attr="data-res=${res},data-level='write'"
+                          th:disabled="${!canWriteAdmin}"
+                          style="padding:4px 10px;font-size:11.5px;font-weight:600;border:none;cursor:pointer;background:var(--raised);color:var(--text);"
+                          onclick="setPermLevel(this)">Write</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 호스트 그룹 접근 -->
+          <div>
+            <div style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;">
+              Host Group Access
+              <span style="font-size:11px;font-weight:400;color:var(--text-muted);margin-left:6px;">(empty = all)</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px;">
+              <th:block th:each="hg : ${hostGroups}">
+                <label style="display:flex;align-items:center;gap:8px;padding:9px 14px;border:1px solid var(--border);border-radius:5px;cursor:pointer;background:var(--raised);">
+                  <input type="checkbox" class="hg-access-check"
+                         th:attr="data-id=${hg.id}, data-name=${hg.name}"
+                         th:disabled="${!canWriteAdmin}"
+                         style="width:14px;height:14px;accent-color:var(--accent);">
+                  <span style="font-size:13px;color:var(--text);" th:text="${hg.name}">—</span>
+                  <span th:if="${hg.name == 'Default Group'}"
+                        class="badge badge-muted" style="font-size:11px;margin-left:auto;">Default</span>
+                </label>
+              </th:block>
+              <div th:if="${#lists.isEmpty(hostGroups)}"
+                   style="font-size:13px;color:var(--text-muted);padding:8px 0;">No host groups defined.</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top:20px;display:flex;gap:8px;align-items:center;">
+          <button th:if="${canWriteAdmin}" class="btn btn-primary" onclick="savePermissions()">Save Permissions</button>
+          <span id="permSaveMsg" style="font-size:12.5px;color:var(--ok);display:none;">Saved.</span>
+          <span id="permSaveErr" style="font-size:12.5px;color:var(--danger);display:none;"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ Groups 목록 ══ -->
+  <div id="listPanel">
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <input type="text" class="search-input" placeholder="Search groups…"
+               oninput="filterTable('ugTable', this.value)">
+      </div>
+      <div class="toolbar-right">
+        <button th:if="${canWriteAdmin}" class="btn btn-primary" onclick="openAddGroup()">+ Add User Group</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">User Groups</span>
+        <span class="card-count" id="ugCount"></span>
+      </div>
+      <table class="data-table" id="ugTable">
+        <thead>
+          <tr>
+            <th style="width:36px;"><input type="checkbox" id="checkAllGroups" onchange="toggleAllGroups(this)"></th>
+            <th>Group Name</th><th>Description</th><th>Members</th><th>Status</th><th>Created</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr th:if="${#lists.isEmpty(userGroups)}">
+            <td colspan="6" class="table-empty">No user groups registered yet.</td>
+          </tr>
+          <tr th:each="g : ${userGroups}"
+              th:id="'ug-row-' + ${g.id}"
+              style="cursor:pointer;"
+              th:attr="data-id=${g.id}, data-name=${g.name}, data-desc=${g.description ?: ''}">
+            <td onclick="event.stopPropagation();" style="text-align:center;">
+              <input type="checkbox" class="group-check" th:attr="data-id=${g.id}" onchange="updateGroupBulkBtn()">
+            </td>
+            <td class="td-mono td-bold" th:text="${g.name}">—</td>
+            <td th:text="${g.description ?: '—'}">—</td>
+            <td class="td-mono" th:text="${memberCountMap != null and memberCountMap[g.id] != null ? memberCountMap[g.id] : 0}">0</td>
+            <td>
+              <span th:if="${g.enabled}"     class="badge badge-ok">Active</span>
+              <span th:unless="${g.enabled}" class="badge badge-muted">Inactive</span>
+            </td>
+            <td class="td-mono td-muted"
+                th:text="${g.createdAt != null ? #temporals.format(g.createdAt,'yyyy-MM-dd HH:mm') : '—'}">—</td>
+          </tr>
+        </tbody>
+      </table>
+      <div th:if="${canWriteAdmin}"
+           style="display:flex;align-items:center;gap:8px;padding:10px 18px;border-top:1px solid var(--border);background:var(--raised);">
+        <span style="font-size:12.5px;color:var(--text-muted);flex:1;" id="groupBulkCount"></span>
+        <button class="btn btn-danger btn-sm" id="btnDeleteGroups" onclick="deleteSelectedGroups()" disabled>Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  (function(){
+    var CAN_WRITE = document.getElementById('canWriteData').value === 'true';
+    var RESOURCES = ['dashboard','monitoring','configuration','administration'];
+
+    /* ── 초기화 ── */
+    var rows = document.querySelectorAll('#ugTable tbody tr:not(.table-empty)');
+    var el   = document.getElementById('ugCount');
+    if(el) el.textContent = rows.length ? rows.length + ' groups' : '';
+
+    /* ── 유틸 ── */
+    window.closeModal  = function(id){ document.getElementById(id).style.display='none'; };
+    window.filterTable = function(id, kw){
+      kw = kw.toLowerCase();
+      document.querySelectorAll('#'+id+' tbody tr').forEach(function(r){
+        r.style.display = r.textContent.toLowerCase().includes(kw) ? '' : 'none';
+      });
+    };
+    function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+    /* ── 이벤트 위임 ── */
+    var table = document.getElementById('ugTable');
+    table.addEventListener('click', function(e){
+      if(e.target.closest('button')) return;
+      if(e.target.closest('input[type=checkbox]')) return;
+      var row = e.target.closest('tr[data-id]');
+      if(!row) return;
+      history.pushState({groupId:row.dataset.id, name:row.dataset.name, desc:row.dataset.desc||''}, '');
+      openDetailInternal(parseInt(row.dataset.id), row.dataset.name, row.dataset.desc||'');
+    });
+    window.addEventListener('popstate', function(e){
+      if(e.state && e.state.groupId) openDetailInternal(parseInt(e.state.groupId), e.state.name, e.state.desc||'');
+      else showList();
+    });
+
+    /* ════════════════════════════════════════════
+       Group Bulk
+    ════════════════════════════════════════════ */
+    window.toggleAllGroups = function(chk){
+      if(!CAN_WRITE) return;
+      document.querySelectorAll('.group-check').forEach(function(c){ c.checked=chk.checked; });
+      updateGroupBulkBtn();
+    };
+    window.updateGroupBulkBtn = function(){
+      if(!CAN_WRITE) return;
+      var ids = getCheckedGroupIds();
+      var btn = document.getElementById('btnDeleteGroups');
+      if(btn) btn.disabled = !ids.length;
+      var el = document.getElementById('groupBulkCount');
+      if(el) el.textContent = ids.length ? ids.length+' selected' : '';
+    };
+    function getCheckedGroupIds(){
+      var ids=[];
+      document.querySelectorAll('.group-check:checked').forEach(function(c){ ids.push(parseInt(c.dataset.id)); });
+      return ids;
+    }
+    window.deleteSelectedGroups = function(){
+      if(!CAN_WRITE) return;
+      var ids = getCheckedGroupIds();
+      if(!ids.length) return;
+      if(!confirm('Delete '+ids.length+' group(s)?')) return;
+      Promise.all(ids.map(function(id){
+        return fetch('/api/user-groups/'+id, {method:'DELETE', headers:{'X-CSRF-TOKEN':getCsrf()}});
+      })).then(function(){ location.reload(); });
+    };
+
+    /* ════════════════════════════════════════════
+       Group CRUD
+    ════════════════════════════════════════════ */
+    window.openAddGroup = function(){
+      if(!CAN_WRITE) return;
+      document.getElementById('groupModalTitle').textContent = 'Add User Group';
+      document.getElementById('editGroupId').value = '';
+      document.getElementById('groupName').value   = '';
+      document.getElementById('groupDesc').value   = '';
+      document.getElementById('groupModalError').style.display = 'none';
+      document.getElementById('addGroupModal').style.display   = 'flex';
+    };
+    window.openEditGroupById = function(id, name, desc){
+      if(!CAN_WRITE) return;
+      document.getElementById('groupModalTitle').textContent = 'Edit User Group';
+      document.getElementById('editGroupId').value = id;
+      document.getElementById('groupName').value   = name;
+      document.getElementById('groupDesc').value   = desc;
+      document.getElementById('groupModalError').style.display = 'none';
+      document.getElementById('addGroupModal').style.display   = 'flex';
+    };
+    window.openEditGroup = function(){ if(!CAN_WRITE) return; openEditGroupById(currentGroupId, currentGroupName, currentGroupDesc); };
+    window.submitGroup = function(){
+      if(!CAN_WRITE) return;
+      var name  = document.getElementById('groupName').value.trim();
+      var desc  = document.getElementById('groupDesc').value.trim();
+      var errEl = document.getElementById('groupModalError');
+      errEl.style.display = 'none';
+      if(!name){ errEl.textContent='Group name is required.'; errEl.style.display='block'; return; }
+      var id = document.getElementById('editGroupId').value;
+      fetch(id ? '/api/user-groups/'+id : '/api/user-groups/add', {
+        method: id ? 'PUT' : 'POST',
+        headers: {'Content-Type':'application/json','X-CSRF-TOKEN':getCsrf()},
+        body: JSON.stringify({name:name, description:desc})
+      }).then(function(r){ return r.json(); }).then(function(d){
+        if(d.success){ closeModal('addGroupModal'); location.reload(); }
+        else{ errEl.textContent=d.error||'Failed.'; errEl.style.display='block'; }
+      }).catch(function(){ errEl.textContent='Request failed.'; errEl.style.display='block'; });
+    };
+    window.deleteGroup = function(id){
+      if(!CAN_WRITE) return;
+      if(!confirm('Delete this group?')) return;
+      fetch('/api/user-groups/'+id, {method:'DELETE', headers:{'X-CSRF-TOKEN':getCsrf()}})
+        .then(function(){
+          var row = document.getElementById('ug-row-'+id);
+          if(row) row.remove();
+          if(currentGroupId === id) showList();
+        });
+    };
+
+    /* ════════════════════════════════════════════
+       Detail Panel
+    ════════════════════════════════════════════ */
+    var currentGroupId   = null;
+    var currentGroupName = '';
+    var currentGroupDesc = '';
+    var allUsers         = [];
+    var currentMembers   = [];
+
+    function openDetailInternal(id, name, desc){
+      currentGroupId   = id;
+      currentGroupName = name;
+      currentGroupDesc = desc || '';
+      document.getElementById('detailGroupName').textContent = name;
+      document.getElementById('detailGroupDesc').textContent = desc || '';
+      document.getElementById('listPanel').style.display   = 'none';
+      document.getElementById('detailPanel').style.display = '';
+      switchDetailTab('members');
+      loadMembers();
+    }
+    window.closeDetail = function(){ history.back(); };
+    function showList(){
+      currentGroupId = null;
+      document.getElementById('detailPanel').style.display = 'none';
+      document.getElementById('listPanel').style.display   = '';
+    }
+
+    /* ── Detail 탭 ── */
+    window.switchDetailTab = function(tab){
+      document.getElementById('dpane-members').style.display     = tab==='members'     ? '' : 'none';
+      document.getElementById('dpane-permissions').style.display = tab==='permissions' ? '' : 'none';
+      document.getElementById('dtab-members').classList.toggle('tab-btn--active',     tab==='members');
+      document.getElementById('dtab-permissions').classList.toggle('tab-btn--active', tab==='permissions');
+      if(tab==='permissions') loadPermissions();
+    };
+
+    /* ════════════════════════════════════════════
+       Members
+    ════════════════════════════════════════════ */
+    function loadMembers(){
+      fetch('/api/user-groups/'+currentGroupId+'/members')
+        .then(function(r){ return r.json(); })
+        .then(function(data){ currentMembers=data; renderMemberTable(data); })
+        .catch(function(){
+          document.getElementById('memberTableBody').innerHTML =
+            '<tr><td colspan="6" class="table-empty">Failed to load.</td></tr>';
+        });
+    }
+    function renderMemberTable(data){
+      var tbody = document.getElementById('memberTableBody');
+      var chk   = document.getElementById('checkAllMembers');
+      if(chk) chk.checked = false;
+      if(CAN_WRITE) updateMemberBulkBtn();
+      if(!data.length){ tbody.innerHTML='<tr><td colspan="6" class="table-empty">No users in this group yet.</td></tr>'; return; }
+      tbody.innerHTML = data.map(function(m){
+        var roleStyle = m.role==='Administrator'?'badge-danger':m.role==='Operator'?'badge-warn':'badge-muted';
+        return '<tr>'+
+          '<td style="text-align:center;">'+(CAN_WRITE?'<input type="checkbox" class="member-check" data-id="'+m.id+'" onchange="updateMemberBulkBtn()">':'')+'</td>'+
+          '<td class="td-mono td-bold"><a href="/administration/users/'+m.userId+'/edit" style="color:var(--accent);text-decoration:none;">'+esc(m.username)+'</a></td>'+
+          '<td>'+esc(m.fullName)+'</td>'+
+          '<td><span class="badge '+roleStyle+'">'+esc(m.role)+'</span></td>'+
+          '<td>'+(m.enabled?'<span class="badge badge-ok">Active</span>':'<span class="badge badge-muted">Inactive</span>')+'</td>'+
+          '<td>'+(CAN_WRITE?'<button class="btn btn-danger btn-sm" onclick="removeMember('+m.id+')">Remove</button>':'')+'</td>'+
+        '</tr>';
+      }).join('');
+    }
+    window.toggleAllMembers = function(chk){
+      if(!CAN_WRITE) return;
+      document.querySelectorAll('.member-check').forEach(function(c){ c.checked=chk.checked; });
+      updateMemberBulkBtn();
+    };
+    window.updateMemberBulkBtn = function(){
+      if(!CAN_WRITE) return;
+      var ids = getCheckedMemberIds();
+      var btn = document.getElementById('btnRemoveMembers');
+      if(btn) btn.disabled = !ids.length;
+      var el = document.getElementById('memberBulkCount');
+      if(el) el.textContent = ids.length ? ids.length+' selected' : '';
+    };
+    function getCheckedMemberIds(){
+      var ids=[];
+      document.querySelectorAll('.member-check:checked').forEach(function(c){ ids.push(parseInt(c.dataset.id)); });
+      return ids;
+    }
+    window.removeMember = function(memberId){
+      if(!CAN_WRITE) return;
+      if(!confirm('Remove this user from the group?')) return;
+      fetch('/api/user-groups/'+currentGroupId+'/members/'+memberId, {
+        method:'DELETE', headers:{'X-CSRF-TOKEN':getCsrf()}
+      }).then(function(){ loadMembers(); });
+    };
+    window.removeSelectedMembers = function(){
+      if(!CAN_WRITE) return;
+      var ids = getCheckedMemberIds();
+      if(!ids.length) return;
+      if(!confirm('Remove '+ids.length+' user(s) from the group?')) return;
+      Promise.all(ids.map(function(id){
+        return fetch('/api/user-groups/'+currentGroupId+'/members/'+id, {
+          method:'DELETE', headers:{'X-CSRF-TOKEN':getCsrf()}
+        });
+      })).then(function(){ loadMembers(); });
+    };
+
+    /* ════════════════════════════════════════════
+       Add Member 모달
+    ════════════════════════════════════════════ */
+    var filteredUsers = [];
+    window.openAddMember = function(){
+      if(!CAN_WRITE) return;
+      document.getElementById('memberSearch').value = '';
+      document.getElementById('addMemberError').style.display = 'none';
+      document.getElementById('memberSelectCount').textContent = '';
+      var p1 = allUsers.length ? Promise.resolve(allUsers) : fetch('/api/user-groups-users').then(function(r){ return r.json(); });
+      p1.then(function(users){
+        allUsers = users;
+        var memberUserIds = currentMembers.map(function(m){ return m.userId; });
+        filteredUsers = users.filter(function(u){ return !memberUserIds.includes(u.id); });
+        renderMemberUserList(filteredUsers);
+        document.getElementById('addMemberModal').style.display = 'flex';
+      }).catch(function(){ alert('Failed to load users.'); });
+    };
+    window.filterMemberList = function(kw){
+      kw = kw.toLowerCase();
+      var memberUserIds = currentMembers.map(function(m){ return m.userId; });
+      filteredUsers = allUsers.filter(function(u){
+        return !memberUserIds.includes(u.id) &&
+          (u.username.toLowerCase().includes(kw)||(u.fullName||'').toLowerCase().includes(kw));
+      });
+      renderMemberUserList(filteredUsers);
+    };
+    function renderMemberUserList(list){
+      var el = document.getElementById('memberUserList');
+      if(!list.length){ el.innerHTML='<div style="text-align:center;padding:20px 0;color:var(--text-muted);font-size:13px;">No users available.</div>'; return; }
+      el.innerHTML = list.map(function(u){
+        var roleStyle = u.role==='Administrator'?'badge-danger':u.role==='Operator'?'badge-warn':'badge-muted';
+        return '<label style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--border);border-radius:4px;cursor:pointer;background:var(--raised);">'+
+          '<input type="checkbox" class="user-add-check" data-id="'+u.id+'" onchange="updateAddMemberCount()" style="width:14px;height:14px;accent-color:var(--accent);">'+
+          '<span class="td-mono" style="font-weight:600;color:var(--text);font-size:13px;">'+esc(u.username)+'</span>'+
+          (u.fullName?'<span style="font-size:12px;color:var(--text-muted);">'+esc(u.fullName)+'</span>':'')+
+          '<span style="margin-left:auto;"><span class="badge '+roleStyle+'" style="font-size:11px;">'+esc(u.role)+'</span></span>'+
+        '</label>';
+      }).join('');
+      updateAddMemberCount();
+    }
+    window.updateAddMemberCount = function(){
+      var c = document.querySelectorAll('.user-add-check:checked').length;
+      document.getElementById('memberSelectCount').textContent = c ? c+' selected' : '';
+    };
+    window.submitAddMembers = function(){
+      if(!CAN_WRITE) return;
+      var ids=[];
+      document.querySelectorAll('.user-add-check:checked').forEach(function(c){ ids.push(parseInt(c.dataset.id)); });
+      var errEl = document.getElementById('addMemberError');
+      errEl.style.display = 'none';
+      if(!ids.length){ errEl.textContent='Please select at least one user.'; errEl.style.display='block'; return; }
+      fetch('/api/user-groups/'+currentGroupId+'/members', {
+        method:'POST',
+        headers:{'Content-Type':'application/json','X-CSRF-TOKEN':getCsrf()},
+        body: JSON.stringify({userIds: ids})
+      }).then(function(r){ return r.json(); }).then(function(d){
+        if(d.success){ closeModal('addMemberModal'); allUsers=[]; loadMembers(); }
+        else{ errEl.textContent=d.error||'Failed.'; errEl.style.display='block'; }
+      }).catch(function(){ errEl.textContent='Request failed.'; errEl.style.display='block'; });
+    };
+
+    /* ════════════════════════════════════════════
+       Permissions
+    ════════════════════════════════════════════ */
+    var currentPerms = {};
+    var currentHgIds = [];
+
+    function loadPermissions(){
+      fetch('/api/user-groups/'+currentGroupId+'/permissions')
+        .then(function(r){ return r.json(); })
+        .then(function(d){
+          currentPerms = d.permissions || {};
+          currentHgIds = d.hostGroupIds || [];
+          renderPermissions();
+        }).catch(function(){});
+    }
+
+    function renderPermissions(){
+      RESOURCES.forEach(function(res){
+        var level = currentPerms[res] || 'none';
+        document.querySelectorAll('.perm-btn[data-res="'+res+'"]').forEach(function(btn){
+          var isActive = btn.dataset.level === level;
+          btn.style.background = isActive ? 'var(--accent)' : 'var(--raised)';
+          btn.style.color      = isActive ? '#fff' : 'var(--text)';
+        });
+      });
+      document.querySelectorAll('.hg-access-check').forEach(function(chk){
+        var isDefault = chk.dataset.name === 'Default Group';
+        if(isDefault){
+          chk.checked  = true;
+          chk.disabled = true;
+          chk.style.opacity = '.5';
+          chk.style.cursor  = 'not-allowed';
+        } else {
+          chk.checked  = currentHgIds.includes(parseInt(chk.dataset.id));
+          chk.disabled = !CAN_WRITE;
+          chk.style.opacity = CAN_WRITE ? '' : '.5';
+          chk.style.cursor  = CAN_WRITE ? '' : 'not-allowed';
+        }
+      });
+    }
+
+    window.setPermLevel = function(btn){
+      if(!CAN_WRITE) return;
+      var res   = btn.dataset.res;
+      var level = btn.dataset.level;
+      currentPerms[res] = level;
+      document.querySelectorAll('.perm-btn[data-res="'+res+'"]').forEach(function(b){
+        var isActive = b.dataset.level === level;
+        b.style.background = isActive ? 'var(--accent)' : 'var(--raised)';
+        b.style.color      = isActive ? '#fff' : 'var(--text)';
+      });
+    };
+
+    window.savePermissions = function(){
+      if(!CAN_WRITE) return;
+      var hgIds = [];
+      document.querySelectorAll('.hg-access-check:checked').forEach(function(c){
+        hgIds.push(parseInt(c.dataset.id));
+      });
+      var msgEl = document.getElementById('permSaveMsg');
+      var errEl = document.getElementById('permSaveErr');
+      msgEl.style.display = 'none';
+      errEl.style.display = 'none';
+      fetch('/api/user-groups/'+currentGroupId+'/permissions', {
+        method:'POST',
+        headers:{'Content-Type':'application/json','X-CSRF-TOKEN':getCsrf()},
+        body: JSON.stringify({permissions: currentPerms, hostGroupIds: hgIds})
+      }).then(function(r){ return r.json(); }).then(function(d){
+        if(d.success){
+          msgEl.style.display='inline';
+          setTimeout(function(){ msgEl.style.display='none'; }, 3000);
+        } else {
+          errEl.textContent=d.error||'Failed.';
+          errEl.style.display='inline';
+        }
+      }).catch(function(){ errEl.textContent='Request failed.'; errEl.style.display='inline'; });
+    };
+
+  })();
+  </script>
+
+</div>
+</body>
+</html>

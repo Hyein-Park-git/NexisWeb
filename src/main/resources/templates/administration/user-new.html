@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="content">
+
+  <!-- ══ Group Select 모달 ══ -->
+  <div id="groupSelectModal" class="modal-backdrop" style="display:none;">
+    <div class="modal-box" style="max-width:500px;">
+      <div class="modal-head">
+        <span class="modal-title">Select User Groups</span>
+        <button class="modal-close" onclick="closeGroupSelectModal()">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <line x1="1" y1="1" x2="13" y2="13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+            <line x1="13" y1="1" x2="1"  y2="13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body" style="padding:14px 20px;">
+        <input type="text" class="search-input" id="groupModalSearch"
+               placeholder="Search groups…" oninput="filterGroupModal(this.value)"
+               style="width:100%;margin-bottom:10px;">
+        <div id="groupModalList" style="display:flex;flex-direction:column;gap:5px;max-height:400px;overflow-y:auto;"></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-secondary" onclick="closeGroupSelectModal()">Cancel</button>
+        <button class="btn btn-primary"   onclick="closeGroupSelectModal()">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <style>
+    .ug-tag-box{display:flex;flex-wrap:wrap;align-items:center;gap:4px;min-height:36px;padding:3px 6px;border:1px solid var(--border);border-radius:4px;background:var(--bg);cursor:text;flex:1;}
+    .ug-tag{display:inline-flex;align-items:center;gap:4px;padding:2px 8px 2px 10px;background:color-mix(in srgb,var(--accent) 15%,transparent);border:1px solid color-mix(in srgb,var(--accent) 35%,transparent);border-radius:3px;font-size:12.5px;color:var(--text);white-space:nowrap;}
+    .ug-tag-x{background:none;border:none;cursor:pointer;padding:0;line-height:1;color:var(--text-muted);font-size:14px;display:flex;align-items:center;}
+    .ug-tag-x:hover{color:var(--danger);}
+    .ug-tag-search{border:none;outline:none;background:transparent;font-size:13px;color:var(--text);min-width:120px;flex:1;padding:2px 0;}
+    .ug-tag-search::placeholder{color:var(--text-muted);}
+    .ug-modal-row{display:flex;align-items:center;justify-content:space-between;padding:9px 14px;border:1px solid var(--border);border-radius:5px;cursor:pointer;background:var(--raised);transition:border-color .12s,background .12s;}
+    .ug-modal-row:hover{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 7%,transparent);}
+    .ug-modal-row.ug-sel{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent);}
+  </style>
+
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+    <a href="/administration/users" class="btn btn-secondary btn-sm">← Users</a>
+    <span style="font-size:16px;font-weight:600;color:var(--text);">Add User</span>
+  </div>
+
+  <div class="card" style="max-width:660px;">
+    <div class="card-header"><span class="card-title">User</span></div>
+    <div style="padding:28px 28px 20px;">
+
+      <div class="form-group">
+        <label class="form-label">Username <span style="color:var(--danger);">*</span></label>
+        <input type="text" class="form-control" id="newUsername" placeholder="e.g. Hailey Park" style="max-width:320px;">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Full Name</label>
+        <input type="text" class="form-control" id="newFullName" placeholder="Hailey Park" style="max-width:320px;">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Groups</label>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div class="ug-tag-box" id="ugTagBox" onclick="focusUgSearch()">
+            <input type="text" class="ug-tag-search" id="ugTagSearch"
+                   placeholder="type here to search"
+                   oninput="onUgSearchInput(this.value)"
+                   onkeydown="onUgSearchKey(event)">
+          </div>
+          <button type="button" class="btn btn-secondary" onclick="openGroupSelectModal()" style="white-space:nowrap;flex-shrink:0;">Select</button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Password <span style="color:var(--danger);">*</span></label>
+        <input type="password" class="form-control" id="newPassword" style="max-width:320px;">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Password (once again) <span style="color:var(--danger);">*</span></label>
+        <input type="password" class="form-control" id="newPasswordConfirm" style="max-width:320px;">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Role</label>
+        <select class="form-control" id="newRole" style="max-width:200px;">
+          <option value="User">User</option>
+          <option value="Operator">Operator</option>
+          <option value="Admin">Admin</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <textarea class="form-control" id="newDescription" rows="3"
+                  style="height:auto;resize:vertical;max-width:480px;" placeholder="Optional"></textarea>
+      </div>
+
+      <div id="formError" class="modal-error" style="display:none;border-radius:4px;padding:8px 12px;margin-bottom:16px;max-width:480px;"></div>
+
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-primary" onclick="submitNewUser()">Add</button>
+        <a href="/administration/users" class="btn btn-secondary">Cancel</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  (function(){
+    var allGroups      = [];
+    var filteredGroups = [];
+    var selectedIds    = [];
+
+    /* ── 초기 그룹 로드 ── */
+    fetch('/api/user-groups')
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        allGroups      = data;
+        filteredGroups = data.slice();
+      }).catch(function(){});
+
+    /* ── 태그박스 ── */
+    window.focusUgSearch = function(){ document.getElementById('ugTagSearch').focus(); };
+
+    function renderTags(){
+      var box   = document.getElementById('ugTagBox');
+      var input = document.getElementById('ugTagSearch');
+      box.querySelectorAll('.ug-tag').forEach(function(el){ el.remove(); });
+      selectedIds.forEach(function(id){
+        var g = allGroups.find(function(x){ return x.id === id; });
+        if(!g) return;
+        var tag = document.createElement('span');
+        tag.className = 'ug-tag';
+        tag.innerHTML = esc(g.name) +
+          '<button type="button" class="ug-tag-x" onclick="removeTag('+id+')">&#215;</button>';
+        box.insertBefore(tag, input);
+      });
+    }
+
+    window.removeTag = function(id){
+      selectedIds = selectedIds.filter(function(x){ return x !== id; });
+      renderTags();
+      renderGroupModalList();
+    };
+
+    /* ── Group Select 모달 ── */
+    window.openGroupSelectModal = function(){
+      filteredGroups = allGroups.slice();
+      document.getElementById('groupModalSearch').value = '';
+      renderGroupModalList();
+      document.getElementById('groupSelectModal').style.display = 'flex';
+    };
+    window.closeGroupSelectModal = function(){
+      document.getElementById('groupSelectModal').style.display = 'none';
+    };
+    window.filterGroupModal = function(kw){
+      kw = kw.toLowerCase();
+      filteredGroups = allGroups.filter(function(g){
+        return g.name.toLowerCase().includes(kw) || (g.description||'').toLowerCase().includes(kw);
+      });
+      renderGroupModalList();
+    };
+
+    function renderGroupModalList(){
+      var el = document.getElementById('groupModalList');
+      if(!filteredGroups.length){
+        el.innerHTML = '<div style="text-align:center;padding:20px 0;color:var(--text-muted);font-size:13px;">No groups found.</div>';
+        return;
+      }
+      el.innerHTML = filteredGroups.map(function(g){
+        var isSel = selectedIds.includes(g.id);
+        return '<div class="ug-modal-row'+(isSel?' ug-sel':'')+'" onclick="toggleGroup('+g.id+')">'+
+          '<div>'+
+            '<span style="font-size:13px;font-weight:600;color:var(--text);">'+esc(g.name)+'</span>'+
+            (g.description?'<span style="font-size:11.5px;color:var(--text-muted);margin-left:8px;">'+esc(g.description)+'</span>':'')+
+          '</div>'+
+          (isSel?'<span class="badge badge-ok" style="font-size:11px;">Selected</span>':'')+
+        '</div>';
+      }).join('');
+    }
+
+    window.toggleGroup = function(id){
+      if(selectedIds.includes(id)){
+        selectedIds = selectedIds.filter(function(x){ return x !== id; });
+      } else {
+        selectedIds.push(id);
+      }
+      renderTags();
+      renderGroupModalList();
+    };
+
+    window.onUgSearchInput = function(kw){
+      if(kw.trim()){
+        if(document.getElementById('groupSelectModal').style.display !== 'flex') openGroupSelectModal();
+        filterGroupModal(kw);
+      }
+    };
+    window.onUgSearchKey = function(e){ if(e.key==='Enter') openGroupSelectModal(); };
+
+    /* ── Submit ── */
+    window.submitNewUser = function(){
+      var username        = document.getElementById('newUsername').value.trim();
+      var fullName        = document.getElementById('newFullName').value.trim();
+      var password        = document.getElementById('newPassword').value;
+      var passwordConfirm = document.getElementById('newPasswordConfirm').value;
+      var role            = document.getElementById('newRole').value;
+      var description     = document.getElementById('newDescription').value.trim();
+      var errEl           = document.getElementById('formError');
+      errEl.style.display = 'none';
+
+      if(!username){ errEl.textContent='Username is required.'; errEl.style.display='block'; return; }
+      if(!password){ errEl.textContent='Password is required.'; errEl.style.display='block'; return; }
+      if(password !== passwordConfirm){ errEl.textContent='Passwords do not match.'; errEl.style.display='block'; return; }
+      if(password.length < 4){ errEl.textContent='Password must be at least 4 characters.'; errEl.style.display='block'; return; }
+
+      fetch('/api/users/add', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','X-CSRF-TOKEN':getCsrf()},
+        body: JSON.stringify({
+          username:    username,
+          fullName:    fullName,
+          password:    password,
+          role:        role,
+          description: description,
+          groupIds:    selectedIds
+        })
+      }).then(function(r){ return r.json(); }).then(function(d){
+        if(d.success){
+          location.href = '/administration/users';
+        } else {
+          errEl.textContent = d.error || 'Failed.';
+          errEl.style.display = 'block';
+        }
+      }).catch(function(){ errEl.textContent='Request failed.'; errEl.style.display='block'; });
+    };
+
+    function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  })();
+  </script>
+
+</div>
+</body>
+</html>

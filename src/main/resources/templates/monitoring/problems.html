@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="content">
+
+  <style>
+    .filter-active { background:var(--accent) !important; color:#fff !important; }
+    .sev-badge { display:inline-block;padding:2px 10px;border-radius:2px;font-size:11.5px;font-weight:600;white-space:nowrap; }
+    .filter-row { display:flex;align-items:center;gap:0;min-height:32px; }
+    .filter-label { width:160px;font-size:12.5px;color:var(--text-muted);text-align:right;padding-right:16px;flex-shrink:0; }
+    .sev-chk-label { display:flex;align-items:center;gap:5px;font-size:12.5px;cursor:pointer;user-select:none; }
+
+    /* Status 토글 버튼 */
+    .status-toggle {
+      display:inline-flex;align-items:center;gap:5px;
+      padding:2px 8px;border-radius:2px;
+      font-size:11px;font-weight:600;font-family:var(--font-mono);
+      border:none;cursor:pointer;transition:opacity 80ms;
+    }
+    .status-toggle:hover { opacity:.8; }
+    .status-toggle--problem { background:rgba(224,82,82,.15);color:var(--danger); }
+    .status-toggle--ack     { background:rgba(240,165,0,.15);color:var(--warn); }
+    .status-toggle--resolved{ background:rgba(46,192,138,.15);color:var(--ok);cursor:default; }
+  </style>
+
+
+  <!-- ══ Mass Update 모달 ══ -->
+  <div id="massUpdateModal" class="modal-backdrop" style="display:none;align-items:center;justify-content:center;">
+    <div class="modal-box" style="max-width:360px;">
+      <div class="modal-head">
+        <span class="modal-title" id="updateModalTitle">Update</span>
+        <button class="modal-close" id="updateModalClose" onclick="closeUpdateModal()">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <line x1="1" y1="1" x2="13" y2="13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+            <line x1="13" y1="1" x2="1"  y2="13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div id="massUpdateCount" style="font-size:12.5px;color:var(--text-muted);margin-bottom:14px;display:none;"></div>
+        <div style="font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-dim);margin-bottom:10px;">Change status to</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:8px 12px;border:1px solid var(--border);border-radius:2px;">
+            <input type="radio" name="massStatus" value="PROBLEM">
+            <span class="status-toggle status-toggle--problem" style="cursor:inherit;pointer-events:none;">PROBLEM</span>
+            <span style="font-size:12px;color:var(--text-muted);">Revert to unacknowledged</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:8px 12px;border:1px solid var(--border);border-radius:2px;">
+            <input type="radio" name="massStatus" value="ACKNOWLEDGED">
+            <span class="status-toggle status-toggle--ack" style="cursor:inherit;pointer-events:none;">ACKNOWLEDGED</span>
+            <span style="font-size:12px;color:var(--text-muted);">Mark as acknowledged</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:8px 12px;border:1px solid var(--border);border-radius:2px;">
+            <input type="radio" name="massStatus" value="RESOLVED">
+            <span class="status-toggle status-toggle--resolved" style="cursor:inherit;pointer-events:none;">RESOLVED</span>
+            <span style="font-size:12px;color:var(--text-muted);">Mark as resolved</span>
+          </label>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-secondary" onclick="closeUpdateModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="applyUpdate()">Apply</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ 필터 패널 ══ -->
+  <div class="card" style="margin-bottom:14px;">
+    <form th:action="@{/monitoring/problems}" method="get">
+      <div style="padding:16px 20px 12px;display:flex;flex-direction:column;gap:10px;">
+
+        <!-- Show — hidden input으로 값 유지, 버튼은 값만 변경 -->
+        <input type="hidden" name="show" id="showInput" th:value="${show}">
+        <div class="filter-row">
+          <span class="filter-label">Show</span>
+          <div style="display:flex;gap:0;border-radius:0;overflow:hidden;border:1px solid var(--border);">
+            <button type="button"
+                    style="padding:5px 14px;font-size:12.5px;border:none;cursor:pointer;background:var(--raised);color:var(--text);"
+                    th:classappend="${show=='recent'} ? ' filter-active' : ''"
+                    onclick="setShow('recent')">Recent problems</button>
+            <button type="button"
+                    style="padding:5px 14px;font-size:12.5px;border:none;border-left:1px solid var(--border);cursor:pointer;background:var(--raised);color:var(--text);"
+                    th:classappend="${show=='problems' or show==''} ? ' filter-active' : ''"
+                    onclick="setShow('problems')">Problems</button>
+            <button type="button"
+                    style="padding:5px 14px;font-size:12.5px;border:none;border-left:1px solid var(--border);cursor:pointer;background:var(--raised);color:var(--text);"
+                    th:classappend="${show=='history'} ? ' filter-active' : ''"
+                    onclick="setShow('history')">History</button>
+          </div>
+        </div>
+
+        <!-- Hosts -->
+        <div class="filter-row">
+          <span class="filter-label">Hosts</span>
+          <input type="text" name="host" class="form-control"
+                 style="width:280px;height:30px;font-size:12.5px;"
+                 placeholder="type here to search" th:value="${host}">
+        </div>
+
+        <!-- Triggers — triggerName 및 함수식(last() > 80 등) 검색 -->
+        <div class="filter-row">
+          <span class="filter-label">Triggers</span>
+          <input type="text" name="trigger" class="form-control"
+                 style="width:280px;height:30px;font-size:12.5px;"
+                 placeholder="name or expression (e.g. last(), > 80)" th:value="${trigger}">
+        </div>
+
+        <!-- Problem -->
+        <div class="filter-row">
+          <span class="filter-label">Problem</span>
+          <input type="text" name="problem" class="form-control"
+                 style="width:280px;height:30px;font-size:12.5px;"
+                 placeholder="type here to search" th:value="${problem}">
+        </div>
+
+        <!-- Severity -->
+        <div class="filter-row" style="align-items:flex-start;padding-top:2px;">
+          <span class="filter-label" style="padding-top:4px;">Severity</span>
+          <div style="display:flex;flex-wrap:wrap;gap:6px 20px;">
+            <label class="sev-chk-label"><input type="checkbox" name="severity" value="Not classified" th:checked="${severities.contains('Not classified')}"> Not classified</label>
+            <label class="sev-chk-label"><input type="checkbox" name="severity" value="Information"    th:checked="${severities.contains('Information')}">    Information</label>
+            <label class="sev-chk-label"><input type="checkbox" name="severity" value="Warning"        th:checked="${severities.contains('Warning')}">        Warning</label>
+            <label class="sev-chk-label"><input type="checkbox" name="severity" value="Average"        th:checked="${severities.contains('Average')}">        Average</label>
+            <label class="sev-chk-label"><input type="checkbox" name="severity" value="High"           th:checked="${severities.contains('High')}">           High</label>
+            <label class="sev-chk-label"><input type="checkbox" name="severity" value="Disaster"       th:checked="${severities.contains('Disaster')}">       Disaster</label>
+          </div>
+        </div>
+
+        <!-- Age less than -->
+        <div class="filter-row">
+          <span class="filter-label">Age less than</span>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <input type="checkbox" id="ageLessChk"
+                   th:checked="${!ageLess.isEmpty()}"
+                   onchange="document.getElementById('ageLessVal').disabled=!this.checked">
+            <input type="number" name="ageLess" id="ageLessVal" class="form-control"
+                   style="width:70px;height:30px;font-size:12.5px;"
+                   placeholder="14" min="1"
+                   th:value="${ageLess}"
+                   th:disabled="${ageLess.isEmpty()}">
+            <span style="font-size:12.5px;color:var(--text-muted);">days</span>
+          </div>
+        </div>
+
+        <!-- 버튼 -->
+        <div class="filter-row">
+          <span class="filter-label"></span>
+          <div style="display:flex;gap:8px;">
+            <button type="submit" class="btn btn-primary" style="height:32px;padding:0 20px;">Apply</button>
+            <a href="/monitoring/problems" class="btn btn-secondary"
+               style="height:32px;padding:0 20px;line-height:32px;text-decoration:none;">Reset</a>
+          </div>
+        </div>
+
+      </div>
+    </form>
+  </div>
+
+  <!-- ══ Problems 테이블 ══ -->
+  <div class="card">
+    <div class="card-header" style="justify-content:space-between;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span class="card-title">Problems</span>
+        <span class="card-count" th:text="${problems.size()} + ' found'"></span>
+      </div>
+      <span style="font-size:12px;color:var(--text-muted);"
+            th:text="${show == 'history' ? 'Problem history' : show == 'recent' ? 'Recent problems' : 'Active problems'}"></span>
+    </div>
+
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th style="width:36px;"><input type="checkbox" id="checkAll" onchange="toggleAll(this)"></th>
+          <th>Time ▾</th>
+          <th>Severity</th>
+          <th>Recovery time</th>
+          <th>Status</th>
+          <th>Host</th>
+          <th>Problem / Trigger</th>
+          <th>Duration</th>
+          <th>Value</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr th:if="${#lists.isEmpty(problems)}">
+          <td colspan="9" style="text-align:center;padding:48px 0;color:var(--text-muted);font-size:13px;">
+            <svg width="32" height="32" viewBox="0 0 16 16" fill="none"
+                 style="display:block;margin:0 auto 10px;opacity:.3">
+              <path d="M8 1.5L14.5 13H1.5L8 1.5z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+              <line x1="8" y1="6" x2="8" y2="9.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              <circle cx="8" cy="11.5" r="0.75" fill="currentColor"/>
+            </svg>
+            No problems found.
+          </td>
+        </tr>
+        <tr th:each="p : ${problems}" th:id="'prob-row-' + ${p.id}">
+          <td style="text-align:center;">
+            <input type="checkbox" class="prob-check"
+                   th:data-id="${p.id}" onchange="updateCount()">
+          </td>
+          <td class="td-mono" style="font-size:11.5px;color:var(--accent);white-space:nowrap;"
+              th:text="${p.startedAt != null ? #temporals.format(p.startedAt,'yyyy-MM-dd HH:mm:ss') : '—'}">—</td>
+          <td>
+            <span class="sev-badge"
+                  th:text="${p.severity}"
+                  th:style="${p.severity == 'Disaster'    ? 'background:#b71c1c;color:#fff' :
+                              p.severity == 'High'        ? 'background:#e53935;color:#fff' :
+                              p.severity == 'Average'     ? 'background:#e07a3d;color:#fff' :
+                              p.severity == 'Warning'     ? 'background:#d4a800;color:#fff' :
+                              p.severity == 'Information' ? 'background:#2e7d9e;color:#fff' :
+                                                            'background:#888;color:#fff'}">—</span>
+          </td>
+          <td class="td-mono" style="font-size:11.5px;color:var(--ok);"
+              th:text="${p.resolvedAt != null ? #temporals.format(p.resolvedAt,'HH:mm:ss') : ''}">—</td>
+
+          <td th:id="'status-cell-' + ${p.id}">
+            <button th:if="${p.status == 'PROBLEM'}"
+                    class="status-toggle status-toggle--problem"
+                    th:data-id="${p.id}"
+                    th:onclick="'openUpdateModal(' + ${p.id} + ')'">PROBLEM</button>
+            <button th:if="${p.status == 'ACKNOWLEDGED'}"
+                    class="status-toggle status-toggle--ack"
+                    th:data-id="${p.id}"
+                    th:onclick="'openUpdateModal(' + ${p.id} + ')'">ACKNOWLEDGED</button>
+            <span th:if="${p.status == 'RESOLVED'}"
+                  class="status-toggle status-toggle--resolved">RESOLVED</span>
+          </td>
+
+          <td class="td-mono td-bold" style="color:var(--accent);" th:text="${p.hostname ?: '—'}">—</td>
+          <td>
+            <div style="font-size:13px;font-weight:500;" th:text="${p.triggerName ?: '—'}">—</div>
+            <div style="font-size:11.5px;color:var(--text-muted);" th:text="${p.itemName ?: ''}"></div>
+          </td>
+          <td class="td-mono" style="font-size:11.5px;"
+              th:text="${p.startedAt != null ?
+                (p.resolvedAt != null ?
+                  T(java.time.Duration).between(p.startedAt, p.resolvedAt).toMinutes() + 'm' :
+                  T(java.time.Duration).between(p.startedAt, T(java.time.LocalDateTime).now()).toMinutes() + 'm')
+                : '—'}">—</td>
+          <td class="td-mono" th:text="${p.value ?: '—'}">—</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- 하단 바 -->
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 18px;
+                border-top:1px solid var(--border);background:var(--raised);">
+      <span style="font-size:12px;color:var(--text-muted);" id="probSelectedCount">0 selected</span>
+      <button class="btn btn-secondary btn-sm" disabled id="btnMassUpdate"
+              onclick="openMassUpdate()">Mass update</button>
+    </div>
+  </div>
+
+  <script>
+    // ── 전체 선택 ──────────────────────────────────────────────
+    function toggleAll(chk) {
+      document.querySelectorAll('.prob-check').forEach(function(c) { c.checked = chk.checked; });
+      updateCount();
+    }
+
+    function updateCount() {
+      var n = document.querySelectorAll('.prob-check:checked').length;
+      document.getElementById('probSelectedCount').textContent = n + ' selected';
+      document.getElementById('btnMassUpdate').disabled = n === 0;
+    }
+
+
+
+    // ── Mass update 모달 ──────────────────────────────────────
+    // ── 통합 Update 모달 ───────────────────────────────────────
+    var _updateIds = [];  // 단일 또는 다중 id 모두 여기에 저장
+
+    // 개별 클릭 — status 셀 버튼에서 호출
+    function openUpdateModal(id) {
+      _updateIds = [id];
+      document.querySelectorAll('input[name="massStatus"]').forEach(function(r) { r.checked = false; });
+      document.getElementById('updateModalTitle').textContent = 'Update Problem';
+      var countEl = document.getElementById('massUpdateCount');
+      countEl.textContent = '1 problem selected';
+      countEl.style.display = 'block';
+      document.getElementById('massUpdateModal').style.display = 'flex';
+    }
+
+    // Mass update — 하단 버튼에서 호출
+    function openMassUpdate() {
+      _updateIds = [];
+      document.querySelectorAll('.prob-check:checked').forEach(function(c) {
+        _updateIds.push(parseInt(c.dataset.id));
+      });
+      if (!_updateIds.length) return;
+      document.querySelectorAll('input[name="massStatus"]').forEach(function(r) { r.checked = false; });
+      document.getElementById('updateModalTitle').textContent = 'Mass Update';
+      var countEl = document.getElementById('massUpdateCount');
+      countEl.textContent = _updateIds.length + ' problem(s) selected';
+      countEl.style.display = 'block';
+      document.getElementById('massUpdateModal').style.display = 'flex';
+    }
+
+    function closeUpdateModal() {
+      document.getElementById('massUpdateModal').style.display = 'none';
+    }
+
+    function applyUpdate() {
+      var statusEl = document.querySelector('input[name="massStatus"]:checked');
+      if (!statusEl) { alert('Please select a status.'); return; }
+      var newStatus = statusEl.value;
+      var ids = _updateIds;
+      if (!ids.length) { closeUpdateModal(); return; }
+
+      fetch('/api/problems/mass-update', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': getCsrf()
+        },
+        body: JSON.stringify({ ids: ids, status: newStatus })
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (!d.success) { alert('Failed: ' + (d.error || 'unknown error')); return; }
+        ids.forEach(function(id) {
+          var cell = document.getElementById('status-cell-' + id);
+          if (!cell) return;
+          if (newStatus === 'PROBLEM') {
+            cell.innerHTML = '<button class="status-toggle status-toggle--problem" onclick="openUpdateModal(' + id + ')">PROBLEM</button>';
+          } else if (newStatus === 'ACKNOWLEDGED') {
+            cell.innerHTML = '<button class="status-toggle status-toggle--ack" onclick="openUpdateModal(' + id + ')">ACKNOWLEDGED</button>';
+          } else if (newStatus === 'RESOLVED') {
+            cell.innerHTML = '<span class="status-toggle status-toggle--resolved">RESOLVED</span>';
+          }
+        });
+        document.querySelectorAll('.prob-check:checked').forEach(function(c) { c.checked = false; });
+        var checkAll = document.getElementById('checkAll');
+        if (checkAll) checkAll.checked = false;
+        _updateIds = [];
+        updateCount();
+        closeUpdateModal();
+      })
+      .catch(function(e) { alert('Request failed: ' + e); });
+    }
+
+    // ── Show 버튼 — 현재 필터 값 유지하면서 show만 바꿔 이동 ──
+    function setShow(val) {
+      var params = new URLSearchParams(window.location.search);
+      params.set('show', val);
+      // 현재 입력된 필터 값도 반영
+      var host    = document.querySelector('[name="host"]');
+      var trigger = document.querySelector('[name="trigger"]');
+      var problem = document.querySelector('[name="problem"]');
+      if (host)    params.set('host',    host.value);
+      if (trigger) params.set('trigger', trigger.value);
+      if (problem) params.set('problem', problem.value);
+      window.location.href = '/monitoring/problems?' + params.toString();
+    }
+
+    // ── ageLess 체크박스 초기화 ───────────────────────────────
+    (function() {
+      var chk = document.getElementById('ageLessChk');
+      var val = document.getElementById('ageLessVal');
+      if (chk && val) val.disabled = !chk.checked;
+    })();
+  </script>
+
+</div>
+</body>
+</html>

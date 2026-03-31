@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="content">
+
+  <input type="hidden" id="canWriteData" th:value="${canWrite}">
+
+  <!-- ══ Host Group 필터 모달 ══ -->
+  <div id="groupFilterModal" class="modal-backdrop" style="display:none;">
+    <div class="modal-box" style="max-width:460px;">
+      <div class="modal-head">
+        <span class="modal-title">Filter by Host Group</span>
+        <button class="modal-close" onclick="closeGroupModal()">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <line x1="1" y1="1" x2="13" y2="13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+            <line x1="13" y1="1" x2="1"  y2="13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body" style="padding:14px 20px;">
+        <input type="text" class="search-input" id="groupModalSearch"
+               placeholder="Search groups…" oninput="filterGroupModalList(this.value)"
+               style="width:100%;margin-bottom:10px;">
+        <div id="groupModalList" style="display:flex;flex-direction:column;gap:4px;max-height:400px;overflow-y:auto;"></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-secondary" onclick="clearGroupFilter()">Clear filter</button>
+        <button class="btn btn-secondary" onclick="closeGroupModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ Add Host 모달 ══ -->
+  <div id="hostModal" class="modal-backdrop" style="display:none;">
+    <div class="modal-box">
+      <div class="modal-head">
+        <span class="modal-title">Add Host</span>
+        <button class="modal-close" onclick="closeModal('hostModal')">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <line x1="1" y1="1" x2="13" y2="13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+            <line x1="13" y1="1" x2="1"  y2="13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group"><label class="form-label">Hostname *</label><input type="text" class="form-control" id="modalHostname" placeholder="e.g. server-01"></div>
+        <div class="form-group"><label class="form-label">IP Address</label><input type="text" class="form-control" id="modalIpAddress" placeholder="e.g. 192.168.1.10"></div>
+        <div class="form-group"><label class="form-label">Description</label><input type="text" class="form-control" id="modalDescription" placeholder="Optional"></div>
+        <div id="hostModalError" class="modal-error" style="display:none;"></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-secondary" onclick="closeModal('hostModal')">Cancel</button>
+        <button class="btn btn-primary" onclick="submitAddHost()">Add Host</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ Delete 확인 모달 ══ -->
+  <div id="deleteHostModal" class="modal-backdrop" style="display:none;">
+    <div class="modal-box" style="max-width:420px;">
+      <div class="modal-head">
+        <span class="modal-title">Delete Hosts</span>
+        <button class="modal-close" onclick="closeModal('deleteHostModal')">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <line x1="1" y1="1" x2="13" y2="13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+            <line x1="13" y1="1" x2="1"  y2="13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:13.5px;color:var(--text);margin:0 0 6px;">
+          Delete <strong id="deleteHostCount">0</strong> selected host(s)?
+        </p>
+        <p style="font-size:12px;color:var(--text-muted);margin:0;">This action cannot be undone.</p>
+        <div id="deleteHostError" class="modal-error" style="display:none;margin-top:10px;"></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-secondary" onclick="closeModal('deleteHostModal')">Cancel</button>
+        <button class="btn btn-danger" onclick="confirmDeleteHosts()">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ Mass Update 모달 ══ -->
+  <div id="massUpdateModal" class="modal-backdrop" style="display:none;">
+    <div class="modal-box" style="max-width:600px;">
+      <div class="modal-head">
+        <span class="modal-title">Mass Update</span>
+        <button class="modal-close" onclick="closeModal('massUpdateModal')">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <line x1="1" y1="1" x2="13" y2="13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+            <line x1="13" y1="1" x2="1"  y2="13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body" style="padding:20px 24px;">
+        <style>
+          .mu-tpl-tag-box{display:flex;flex-wrap:wrap;align-items:center;gap:4px;min-height:36px;padding:3px 6px;border:1px solid var(--border);border-radius:4px;background:var(--bg);cursor:text;flex:1;}
+          .mu-tpl-tag{display:inline-flex;align-items:center;gap:4px;padding:2px 8px 2px 10px;background:color-mix(in srgb,var(--accent) 15%,transparent);border:1px solid color-mix(in srgb,var(--accent) 35%,transparent);border-radius:3px;font-size:12.5px;color:var(--text);white-space:nowrap;}
+          .mu-tpl-tag-x{background:none;border:none;cursor:pointer;padding:0;line-height:1;color:var(--text-muted);font-size:14px;display:flex;align-items:center;}
+          .mu-tpl-tag-x:hover{color:var(--danger);}
+          .mu-tpl-tag-search{border:none;outline:none;background:transparent;font-size:13px;color:var(--text);min-width:120px;flex:1;padding:2px 0;}
+          .mu-tpl-tag-search::placeholder{color:var(--text-muted);}
+        </style>
+        <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">
+          Applying templates to <strong id="massUpdateCount" style="color:var(--text);">0</strong> selected host(s).
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+          <div class="mu-tpl-tag-box" id="muTplTagBox" onclick="focusMuTplSearch()">
+            <input type="text" class="mu-tpl-tag-search" id="muTplTagSearch"
+                   placeholder="type here to search"
+                   oninput="onMuTplSearchInput(this.value)"
+                   onkeydown="onMuTplSearchKey(event)">
+          </div>
+          <button class="btn btn-secondary" onclick="openMuTplSelectModal()" style="white-space:nowrap;flex-shrink:0;">Select</button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:500;color:var(--text);cursor:pointer;"><input type="radio" name="muTplAction" value="link" checked style="width:14px;height:14px;accent-color:var(--accent);">Link templates</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:500;color:var(--text);cursor:pointer;"><input type="radio" name="muTplAction" value="unlink" style="width:14px;height:14px;accent-color:var(--accent);">Unlink</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:500;color:var(--danger);cursor:pointer;"><input type="radio" name="muTplAction" value="clear" style="width:14px;height:14px;accent-color:var(--danger);">Clear when unlinking</label>
+        </div>
+        <div id="massUpdateError" class="modal-error" style="display:none;"></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-secondary" onclick="closeModal('massUpdateModal')">Cancel</button>
+        <button class="btn btn-primary" onclick="submitMassUpdate()">Update</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ Template Select 모달 (Mass Update용) ══ -->
+  <div id="muTplSelectModal" class="modal-backdrop" style="display:none;">
+    <div class="modal-box" style="max-width:500px;">
+      <div class="modal-head">
+        <span class="modal-title">Select Template</span>
+        <button class="modal-close" onclick="closeMuTplSelectModal()">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <line x1="1" y1="1" x2="13" y2="13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+            <line x1="13" y1="1" x2="1"  y2="13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body" style="padding:14px 20px;">
+        <input type="text" class="search-input" id="muTplModalSearch"
+               placeholder="Search templates…"
+               oninput="filterMuTplModal(this.value)"
+               style="width:100%;margin-bottom:10px;">
+        <div id="muTplModalList" style="display:flex;flex-direction:column;gap:5px;max-height:400px;overflow-y:auto;">
+          <div style="text-align:center;padding:20px 0;color:var(--text-muted);font-size:13px;">Loading…</div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-secondary" onclick="closeMuTplSelectModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="closeMuTplSelectModal()">Update</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ 툴바 ══ -->
+  <div class="toolbar">
+    <div class="toolbar-left" style="gap:6px;">
+      <input type="text" class="search-input" id="hostSearch"
+             placeholder="Search hostname or IP…"
+             oninput="applyFilters()">
+      <button class="btn btn-secondary" id="groupFilterBtn"
+              onclick="openGroupModal()"
+              style="display:flex;align-items:center;gap:5px;">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+          <rect x="1" y="3" width="14" height="2" rx="1" fill="currentColor"/>
+          <rect x="3" y="7" width="10" height="2" rx="1" fill="currentColor"/>
+          <rect x="5" y="11" width="6"  height="2" rx="1" fill="currentColor"/>
+        </svg>
+        <span id="groupFilterLabel">Group</span>
+      </button>
+    </div>
+    <div class="toolbar-right">
+      <!-- canWrite인 경우에만 Add Host 버튼 표시 -->
+      <button th:if="${canWrite}" class="btn btn-primary" onclick="openAddModal()">+ Add Host</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Hosts</span>
+      <span class="card-count" id="hostCount"></span>
+    </div>
+    <table class="data-table" id="hostsTable">
+      <thead>
+        <tr>
+          <th th:if="${canWrite}" style="width:36px;"><input type="checkbox" id="checkAllHosts" onchange="toggleAllHosts(this)"></th>
+          <th th:unless="${canWrite}" style="width:36px;"></th>
+          <th>Hostname</th><th>IP Address</th><th>OS</th><th>Status</th>
+          <th>Agent</th><th>Template</th><th>Last Check</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr th:if="${#lists.isEmpty(hosts)}">
+          <td colspan="8" class="table-empty">No hosts registered yet.</td>
+        </tr>
+        <tr th:each="h : ${hosts}" th:id="'host-row-' + ${h.id}"
+            th:attr="data-hostname=${h.hostname}">
+          <td style="text-align:center;">
+            <input th:if="${canWrite}" type="checkbox" class="host-check" th:attr="data-id=${h.id}" onchange="updateMassUpdateBtn()">
+          </td>
+          <td class="td-mono td-bold">
+            <a th:href="@{/monitoring/hosts/{id}(id=${h.id})}"
+               style="color:var(--accent);text-decoration:none;"
+               th:text="${h.hostname}">—</a>
+          </td>
+          <td class="td-mono" th:text="${h.ipAddress ?: '—'}">—</td>
+          <td th:text="${h.os ?: '—'}">—</td>
+          <td>
+            <span th:if="${h.enabled}"     class="badge badge-ok">Enabled</span>
+            <span th:unless="${h.enabled}" class="badge badge-muted">Disabled</span>
+          </td>
+          <td class="agent-status-cell" th:id="'agent-status-' + ${h.id}">
+            <span th:if="${h.agentActive}"     class="badge badge-ok">Active</span>
+            <span th:unless="${h.agentActive}" class="badge badge-danger">Inactive</span>
+          </td>
+          <td th:id="'tpl-status-' + ${h.id}" style="color:var(--text-muted);font-size:12px;">—</td>
+          <td class="td-mono td-muted" th:id="'last-check-' + ${h.id}"
+              th:text="${h.agentLastCheck != null ? #temporals.format(h.agentLastCheck,'yyyy-MM-dd HH:mm') : '—'}">—</td>
+        </tr>
+      </tbody>
+    </table>
+    <!-- canWrite인 경우에만 bulk action 바 표시 -->
+    <div th:if="${canWrite}" id="hostBulkBar" style="display:flex;align-items:center;gap:8px;padding:10px 18px;border-top:1px solid var(--border);background:var(--raised);">
+      <span style="font-size:12.5px;color:var(--text-muted);flex:1;" id="hostSelectedCount"></span>
+      <button class="btn btn-secondary btn-sm" id="btnMassUpdate"  onclick="openMassUpdate()"  disabled>Mass update</button>
+      <button class="btn btn-danger btn-sm"    id="btnDeleteHosts" onclick="openDeleteHosts()" disabled>Delete</button>
+    </div>
+  </div>
+
+  <script>
+  (function(){
+    var CAN_WRITE = document.getElementById('canWriteData').value === 'true';
+
+    /* ── 초기화 ── */
+    var totalRows = document.querySelectorAll('#hostsTable tbody tr[data-hostname]').length;
+    var el = document.getElementById('hostCount');
+    if(el) el.textContent = totalRows ? totalRows + ' hosts' : '';
+
+    /* ── 그룹 필터 상태 ── */
+    var allGroups            = [];
+    var filteredGroups       = [];
+    var activeGroupId        = null;
+    var activeGroupHostnames = [];
+
+    /* ── 유틸 ── */
+    function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+    function escJ(s){ return String(s||'').replace(/'/g,"\\'"); }
+    function openModal(id){ document.getElementById(id).style.display='flex'; }
+    function closeModal(id){ document.getElementById(id).style.display='none'; }
+    window.openModal  = openModal;
+    window.closeModal = closeModal;
+
+    /* ── 필터 적용 ── */
+    function applyFilters(){
+      var kw = document.getElementById('hostSearch').value.toLowerCase();
+      var visible = 0;
+      document.querySelectorAll('#hostsTable tbody tr[data-hostname]').forEach(function(row){
+        var hostname = (row.dataset.hostname || '').toLowerCase();
+        var text     = row.textContent.toLowerCase();
+        var kwMatch  = !kw || text.includes(kw);
+        var grpMatch = !activeGroupId || activeGroupHostnames.includes(hostname);
+        var show     = kwMatch && grpMatch;
+        row.style.display = show ? '' : 'none';
+        if(show) visible++;
+      });
+      document.getElementById('hostCount').textContent = visible + ' hosts';
+    }
+    window.applyFilters = applyFilters;
+
+    /* ── 그룹 모달 ── */
+    window.openGroupModal = function(){
+      document.getElementById('groupModalSearch').value = '';
+      document.getElementById('groupFilterModal').style.display = 'flex';
+      if(allGroups.length){ filteredGroups=allGroups.slice(); renderGroupModalList(); return; }
+      document.getElementById('groupModalList').innerHTML =
+        '<div style="text-align:center;padding:20px 0;color:var(--text-muted);font-size:13px;">Loading…</div>';
+      fetch('/api/host-groups/available-groups')
+        .then(function(r){ return r.json(); })
+        .then(function(data){
+          allGroups      = data;
+          filteredGroups = data.slice();
+          renderGroupModalList();
+        }).catch(function(){
+          document.getElementById('groupModalList').innerHTML =
+            '<div style="text-align:center;padding:20px 0;color:var(--danger);font-size:13px;">Failed to load.</div>';
+        });
+    };
+
+    window.closeGroupModal = function(){
+      document.getElementById('groupFilterModal').style.display = 'none';
+    };
+
+    window.filterGroupModalList = function(kw){
+      kw = kw.toLowerCase();
+      filteredGroups = allGroups.filter(function(g){
+        return g.name.toLowerCase().includes(kw) || (g.description||'').toLowerCase().includes(kw);
+      });
+      renderGroupModalList();
+    };
+
+    function renderGroupModalList(){
+      var el = document.getElementById('groupModalList');
+      if(!filteredGroups.length){
+        el.innerHTML = '<div style="text-align:center;padding:20px 0;color:var(--text-muted);font-size:13px;">No groups found.</div>';
+        return;
+      }
+      el.innerHTML = filteredGroups.map(function(g){
+        var isActive = g.id === activeGroupId;
+        return '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;'+
+          'border:1px solid '+(isActive?'var(--accent)':'var(--border)')+';border-radius:5px;cursor:pointer;'+
+          'background:'+(isActive?'color-mix(in srgb,var(--accent) 12%,transparent)':'var(--raised)')+';'+
+          'transition:border-color .12s,background .12s;" onclick="selectGroup('+g.id+',\''+escJ(g.name)+'\')">'+
+          '<div>'+
+            '<span style="font-size:13px;font-weight:600;color:var(--text);">'+esc(g.name)+'</span>'+
+            (g.description?'<span style="font-size:12px;color:var(--text-muted);margin-left:8px;">'+esc(g.description)+'</span>':'')+
+          '</div>'+
+          '<div style="display:flex;align-items:center;gap:8px;">'+
+            '<span style="font-size:12px;color:var(--text-muted);">'+g.memberCount+' hosts</span>'+
+            (isActive?'<span class="badge" style="font-size:11px;background:var(--accent);color:#fff;">Active</span>':'')+
+          '</div>'+
+        '</div>';
+      }).join('');
+    }
+
+    window.selectGroup = function(id, name){
+      activeGroupId = id;
+      fetch('/api/host-groups/'+id+'/members')
+        .then(function(r){ return r.json(); })
+        .then(function(members){
+          activeGroupHostnames = members.map(function(m){ return m.hostname.toLowerCase(); });
+          document.getElementById('groupFilterLabel').textContent = name;
+          document.getElementById('groupFilterBtn').style.background = 'var(--accent)';
+          document.getElementById('groupFilterBtn').style.color = '#fff';
+          closeGroupModal();
+          applyFilters();
+        });
+    };
+
+    window.clearGroupFilter = function(){
+      activeGroupId        = null;
+      activeGroupHostnames = [];
+      document.getElementById('groupFilterLabel').textContent = 'Group';
+      document.getElementById('groupFilterBtn').style.background = '';
+      document.getElementById('groupFilterBtn').style.color = '';
+      closeGroupModal();
+      applyFilters();
+    };
+
+    /* ── 체크박스 (canWrite인 경우에만) ── */
+    window.toggleAllHosts = function(chk){
+      if(!CAN_WRITE) return;
+      document.querySelectorAll('.host-check').forEach(function(c){ c.checked=chk.checked; });
+      updateMassUpdateBtn();
+    };
+    function getSelectedHostIds(){
+      var ids=[];
+      document.querySelectorAll('.host-check:checked').forEach(function(c){ ids.push(parseInt(c.dataset.id)); });
+      return ids;
+    }
+    window.updateMassUpdateBtn = function(){
+      if(!CAN_WRITE) return;
+      var ids = getSelectedHostIds();
+      var has = ids.length > 0;
+      var massBtn   = document.getElementById('btnMassUpdate');
+      var deleteBtn = document.getElementById('btnDeleteHosts');
+      if(massBtn)   massBtn.disabled  = !has;
+      if(deleteBtn) deleteBtn.disabled = !has;
+      var countEl = document.getElementById('hostSelectedCount');
+      if(countEl) countEl.textContent = has ? ids.length+' selected' : '';
+    };
+
+    /* ── 템플릿 상태 로드 ── */
+    function loadTemplateStatuses(){
+      fetch('/api/templates/hosts-for-apply')
+        .then(function(r){ return r.json(); })
+        .then(function(hosts){
+          hosts.forEach(function(h){
+            var cell = document.getElementById('tpl-status-'+h.id);
+            if(!cell) return;
+            var tplIds = h.templateIds || [];
+            cell.innerHTML = tplIds.length
+              ? '<span class="badge badge-ok" style="font-size:11px;">'+tplIds.length+' Linked</span>'
+              : '—';
+          });
+        }).catch(function(){});
+    }
+    loadTemplateStatuses();
+
+    /* ── Delete Hosts ── */
+    window.openDeleteHosts = function(){
+      if(!CAN_WRITE) return;
+      var ids = getSelectedHostIds();
+      if(!ids.length) return;
+      document.getElementById('deleteHostCount').textContent = ids.length;
+      document.getElementById('deleteHostError').style.display = 'none';
+      openModal('deleteHostModal');
+    };
+    window.confirmDeleteHosts = function(){
+      var ids   = getSelectedHostIds();
+      var errEl = document.getElementById('deleteHostError');
+      errEl.style.display = 'none';
+      Promise.all(ids.map(function(id){
+        return fetch('/api/hosts/'+id, { method:'DELETE', headers:{'X-CSRF-TOKEN':getCsrf()} })
+          .then(function(r){ return r.json(); });
+      })).then(function(results){
+        var failed = results.filter(function(d){ return d.error; });
+        if(failed.length){
+          errEl.textContent = failed[0].error || 'Permission denied.';
+          errEl.style.display = 'block';
+        } else {
+          closeModal('deleteHostModal');
+          location.reload();
+        }
+      }).catch(function(){
+        errEl.textContent = 'Request failed.';
+        errEl.style.display = 'block';
+      });
+    };
+
+    /* ── Mass Update ── */
+    var muAllTemplates  = [];
+    var muFilteredModal = [];
+    var muPendingTplIds = [];
+
+    window.openMassUpdate = function(){
+      if(!CAN_WRITE) return;
+      var ids = getSelectedHostIds();
+      if(!ids.length) return;
+      document.getElementById('massUpdateCount').textContent = ids.length;
+      document.getElementById('massUpdateError').style.display = 'none';
+      muPendingTplIds = [];
+      renderMuTplTags();
+      if(muAllTemplates.length){ openModal('massUpdateModal'); return; }
+      fetch('/api/templates').then(function(r){ return r.json(); }).then(function(tpls){
+        muAllTemplates = tpls;
+        openModal('massUpdateModal');
+      }).catch(function(){ alert('Failed to load templates.'); });
+    };
+
+    function renderMuTplTags(){
+      var box   = document.getElementById('muTplTagBox');
+      var input = document.getElementById('muTplTagSearch');
+      box.querySelectorAll('.mu-tpl-tag').forEach(function(el){ el.remove(); });
+      muPendingTplIds.forEach(function(tid){
+        var tpl = muAllTemplates.find(function(t){ return t.id===tid; });
+        if(!tpl) return;
+        var tag = document.createElement('span');
+        tag.className = 'mu-tpl-tag';
+        tag.dataset.id = tid;
+        tag.innerHTML = esc(tpl.name)+'<button type="button" class="mu-tpl-tag-x" onclick="removeMuPendingTpl('+tid+')">×</button>';
+        box.insertBefore(tag, input);
+      });
+    }
+    window.removeMuPendingTpl = function(tid){
+      muPendingTplIds = muPendingTplIds.filter(function(id){ return id!==tid; });
+      renderMuTplTags();
+      renderMuTplModalList(muFilteredModal);
+    };
+    window.focusMuTplSearch = function(){ document.getElementById('muTplTagSearch').focus(); };
+
+    window.openMuTplSelectModal = function(){
+      muFilteredModal = muAllTemplates.slice();
+      document.getElementById('muTplModalSearch').value = '';
+      renderMuTplModalList(muFilteredModal);
+      document.getElementById('muTplSelectModal').style.display = 'flex';
+    };
+    window.closeMuTplSelectModal = function(){
+      document.getElementById('muTplSelectModal').style.display = 'none';
+    };
+    window.filterMuTplModal = function(kw){
+      kw = kw.toLowerCase();
+      muFilteredModal = muAllTemplates.filter(function(t){
+        return t.name.toLowerCase().includes(kw)||(t.osType||'').toLowerCase().includes(kw)||(t.description||'').toLowerCase().includes(kw);
+      });
+      renderMuTplModalList(muFilteredModal);
+    };
+    function renderMuTplModalList(list){
+      var el = document.getElementById('muTplModalList');
+      if(!list.length){ el.innerHTML='<div style="text-align:center;padding:20px 0;color:var(--text-muted);font-size:13px;">No templates found.</div>'; return; }
+      el.innerHTML = list.map(function(t){
+        var isSel = muPendingTplIds.includes(t.id);
+        return '<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 14px;'+
+          'border:1px solid '+(isSel?'var(--accent)':'var(--border)')+';border-radius:5px;cursor:pointer;'+
+          'background:'+(isSel?'color-mix(in srgb,var(--accent) 12%,transparent)':'var(--raised)')+';'+
+          'transition:border-color .12s,background .12s;" onclick="toggleMuTpl('+t.id+')">'+
+          '<div><span style="font-size:13px;font-weight:600;color:var(--text);">'+esc(t.name)+'</span>'+
+          '<span style="font-size:11.5px;color:var(--text-muted);margin-left:8px;">'+esc(t.osType||'Any')+(t.description?' · '+esc(t.description):'')+' </span></div>'+
+          (isSel?'<span class="badge badge-ok" style="font-size:11px;">Selected</span>':'')+
+        '</div>';
+      }).join('');
+    }
+    window.toggleMuTpl = function(tid){
+      if(muPendingTplIds.includes(tid)){ muPendingTplIds=muPendingTplIds.filter(function(id){return id!==tid;}); }
+      else{ muPendingTplIds.push(tid); }
+      renderMuTplTags();
+      renderMuTplModalList(muFilteredModal);
+    };
+    window.onMuTplSearchInput = function(kw){
+      if(kw.trim()){ if(document.getElementById('muTplSelectModal').style.display!=='flex')openMuTplSelectModal(); filterMuTplModal(kw); }
+    };
+    window.onMuTplSearchKey = function(e){ if(e.key==='Enter')openMuTplSelectModal(); };
+
+    window.submitMassUpdate = function(){
+      var errEl  = document.getElementById('massUpdateError');
+      errEl.style.display = 'none';
+      var action = document.querySelector('input[name="muTplAction"]:checked').value;
+      var ids    = getSelectedHostIds();
+      if(!muPendingTplIds.length){ errEl.textContent='Please select at least one template.'; errEl.style.display='block'; return; }
+      if(action==='clear'&&!confirm('All items and triggers from selected templates will be deleted. Continue?')) return;
+      Promise.all(muPendingTplIds.map(function(tid){
+        return fetch('/api/templates/'+tid+'/apply',{
+          method:'POST', headers:{'Content-Type':'application/json','X-CSRF-TOKEN':getCsrf()},
+          body:JSON.stringify({hostIds:ids, mode:action})
+        }).then(function(r){ return r.json(); });
+      })).then(function(results){
+        var failed = results.filter(function(d){ return !d.success; });
+        if(failed.length){ errEl.textContent=failed[0].error||'Some updates failed.'; errEl.style.display='block'; }
+        else{
+          closeModal('massUpdateModal');
+          document.querySelectorAll('.host-check').forEach(function(c){ c.checked=false; });
+          var chkAll = document.getElementById('checkAllHosts');
+          if(chkAll) chkAll.checked = false;
+          updateMassUpdateBtn();
+          loadTemplateStatuses();
+        }
+      }).catch(function(){ errEl.textContent='Request failed.'; errEl.style.display='block'; });
+    };
+
+    /* ── Add Host ── */
+    window.openAddModal = function(){
+      if(!CAN_WRITE) return;
+      document.getElementById('modalHostname').value    = '';
+      document.getElementById('modalIpAddress').value   = '';
+      document.getElementById('modalDescription').value = '';
+      document.getElementById('hostModalError').style.display = 'none';
+      openModal('hostModal');
+    };
+    window.submitAddHost = function(){
+      var hostname    = document.getElementById('modalHostname').value.trim();
+      var ipAddress   = document.getElementById('modalIpAddress').value.trim();
+      var description = document.getElementById('modalDescription').value.trim();
+      var errEl       = document.getElementById('hostModalError');
+      if(!hostname){ errEl.textContent='Hostname is required.'; errEl.style.display='block'; return; }
+      fetch('/api/hosts/add',{
+        method:'POST', headers:{'Content-Type':'application/json','X-CSRF-TOKEN':getCsrf()},
+        body:JSON.stringify({hostname:hostname, ipAddress:ipAddress, description:description})
+      }).then(function(r){ return r.json(); }).then(function(d){
+        if(d.success){ closeModal('hostModal'); location.reload(); }
+        else{ errEl.textContent=d.error||'Failed.'; errEl.style.display='block'; }
+      }).catch(function(){ errEl.textContent='Request failed.'; errEl.style.display='block'; });
+    };
+
+    /* ── Agent 상태 폴링 ── */
+    function pollAgentStatus(){
+      fetch('/api/hosts/status').then(function(r){ return r.json(); }).then(function(list){
+        list.forEach(function(h){
+          var sEl = document.getElementById('agent-status-'+h.id);
+          var lEl = document.getElementById('last-check-'+h.id);
+          if(sEl) sEl.innerHTML = h.agentActive
+            ? '<span class="badge badge-ok">Active</span>'
+            : '<span class="badge badge-danger">Inactive</span>';
+          if(lEl) lEl.textContent = h.lastCheck || '—';
+        });
+      }).catch(function(){});
+    }
+    setInterval(pollAgentStatus, 30000);
+
+  })();
+  </script>
+
+</div>
+</body>
+</html>

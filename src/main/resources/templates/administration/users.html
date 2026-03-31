@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="content">
+
+  <input type="hidden" id="canWriteData" th:value="${canWriteAdmin}">
+
+  <!-- ══ Tabs ══ -->
+  <div class="tab-bar">
+    <button class="tab-btn tab-btn--active" id="tab-users"  onclick="switchTab('users')">Users</button>
+    <button class="tab-btn"                 id="tab-groups" onclick="switchTab('groups')">User Groups</button>
+  </div>
+
+  <!-- ══ Users Panel ══ -->
+  <div id="panel-users">
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <input type="text" class="search-input" id="userSearch" placeholder="Search users…"
+               oninput="filterTable('usersTable', this.value)">
+      </div>
+      <div class="toolbar-right">
+        <a th:if="${canWriteAdmin}" href="/administration/users/new" class="btn btn-primary">+ Add User</a>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Users</span>
+        <span class="card-count" id="userCount"></span>
+      </div>
+      <table class="data-table" id="usersTable">
+        <thead>
+          <tr>
+            <th th:if="${canWriteAdmin}" style="width:36px;">
+              <input type="checkbox" id="checkAllUsers" onchange="toggleAllUsers(this)">
+            </th>
+            <th th:unless="${canWriteAdmin}" style="width:36px;"></th>
+            <th>Username</th><th>Full Name</th><th>Role</th><th>Created</th><th>Status</th>
+            <th th:if="${canWriteAdmin}" style="width:100px;"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr th:if="${#lists.isEmpty(users)}">
+            <td colspan="7" class="table-empty">No users registered yet.</td>
+          </tr>
+          <tr th:each="u : ${users}" th:id="'user-row-' + ${u.id}"
+              th:attr="data-id=${u.id}, data-enabled=${u.enabled}">
+            <td style="text-align:center;">
+              <input th:if="${canWriteAdmin}" type="checkbox" class="user-check"
+                     th:attr="data-id=${u.id}" onchange="updateUserBulkBtn()">
+            </td>
+            <td class="td-mono td-bold">
+              <a th:href="'/administration/users/' + ${u.id} + '/edit'"
+                 style="color:var(--accent);text-decoration:none;"
+                 th:text="${u.username}">—</a>
+            </td>
+            <td th:text="${u.fullName ?: '—'}">—</td>
+            <td>
+              <span class="badge"
+                    th:classappend="${u.role=='Administrator'}?' badge-danger':(${u.role=='Operator'}?' badge-warn':' badge-muted')"
+                    th:text="${u.role}">User</span>
+            </td>
+            <td class="td-mono td-muted"
+                th:text="${u.createdAt!=null?#temporals.format(u.createdAt,'yyyy-MM-dd HH:mm'):'—'}">—</td>
+            <td th:id="'user-status-' + ${u.id}">
+              <span th:if="${u.enabled}"     class="badge badge-ok">Active</span>
+              <span th:unless="${u.enabled}" class="badge badge-muted">Inactive</span>
+            </td>
+            <td th:if="${canWriteAdmin}">
+              <button class="btn btn-secondary btn-sm" th:attr="data-id=${u.id}, data-enabled=${u.enabled}"
+                      onclick="toggleUser(parseInt(this.dataset.id), this)">
+                <span th:text="${u.enabled} ? 'Deactivate' : 'Activate'">Toggle</span>
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <div th:if="${canWriteAdmin}"
+           style="display:flex;align-items:center;gap:8px;padding:10px 18px;border-top:1px solid var(--border);background:var(--raised);">
+        <span style="font-size:12.5px;color:var(--text-muted);flex:1;" id="userBulkCount"></span>
+        <button class="btn btn-danger btn-sm" id="btnDeleteUsers" onclick="deleteSelectedUsers()" disabled>Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ User Groups Panel ══ -->
+  <div id="panel-groups" style="display:none;">
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <input type="text" class="search-input" id="groupSearch" placeholder="Search groups…"
+               oninput="filterTable('groupsTable', this.value)">
+      </div>
+      <div class="toolbar-right">
+        <button th:if="${canWriteAdmin}" class="btn btn-primary" onclick="addGroup()">+ Add Group</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">User Groups</span>
+        <span class="card-count" id="groupCount"></span>
+      </div>
+      <table class="data-table" id="groupsTable">
+        <thead>
+          <tr>
+            <th th:if="${canWriteAdmin}" style="width:36px;">
+              <input type="checkbox" id="checkAllGroups" onchange="toggleAllGroups(this)">
+            </th>
+            <th th:unless="${canWriteAdmin}" style="width:36px;"></th>
+            <th>Group Name</th><th>Description</th><th>Status</th><th>Created</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr th:if="${#lists.isEmpty(groups)}">
+            <td colspan="5" class="table-empty">No groups registered yet.</td>
+          </tr>
+          <tr th:each="g : ${groups}" th:id="'group-row-' + ${g.id}">
+            <td style="text-align:center;">
+              <input th:if="${canWriteAdmin}" type="checkbox" class="group-check"
+                     th:attr="data-id=${g.id}" onchange="updateGroupBulkBtn()">
+            </td>
+            <td class="td-mono td-bold" th:text="${g.name}">—</td>
+            <td th:text="${g.description ?: '—'}">—</td>
+            <td>
+              <span th:if="${g.enabled}"     class="badge badge-ok">Active</span>
+              <span th:unless="${g.enabled}" class="badge badge-muted">Inactive</span>
+            </td>
+            <td class="td-mono td-muted"
+                th:text="${g.createdAt!=null?#temporals.format(g.createdAt,'yyyy-MM-dd HH:mm'):'—'}">—</td>
+          </tr>
+        </tbody>
+      </table>
+      <div th:if="${canWriteAdmin}"
+           style="display:flex;align-items:center;gap:8px;padding:10px 18px;border-top:1px solid var(--border);background:var(--raised);">
+        <span style="font-size:12.5px;color:var(--text-muted);flex:1;" id="groupBulkCount"></span>
+        <button class="btn btn-danger btn-sm" id="btnDeleteGroups" onclick="deleteSelectedGroups()" disabled>Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  (function(){
+    var CAN_WRITE = document.getElementById('canWriteData').value === 'true';
+
+    /* ── 초기화 ── */
+    var userRows  = document.querySelectorAll('#usersTable tbody tr:not(.table-empty)');
+    var groupRows = document.querySelectorAll('#groupsTable tbody tr:not(.table-empty)');
+    var uEl = document.getElementById('userCount');
+    var gEl = document.getElementById('groupCount');
+    if(uEl && userRows.length)  uEl.textContent  = userRows.length  + ' users';
+    if(gEl && groupRows.length) gEl.textContent  = groupRows.length + ' groups';
+
+    /* ── 탭 ── */
+    window.switchTab = function(tab){
+      document.getElementById('panel-users').style.display  = tab==='users'  ? '' : 'none';
+      document.getElementById('panel-groups').style.display = tab==='groups' ? '' : 'none';
+      document.getElementById('tab-users').classList.toggle('tab-btn--active',  tab==='users');
+      document.getElementById('tab-groups').classList.toggle('tab-btn--active', tab==='groups');
+    };
+
+    /* ── 필터 ── */
+    window.filterTable = function(tableId, kw){
+      kw = kw.toLowerCase();
+      document.querySelectorAll('#'+tableId+' tbody tr').forEach(function(r){
+        r.style.display = r.textContent.toLowerCase().includes(kw) ? '' : 'none';
+      });
+    };
+
+    /* ════════════════════════════════════════════
+       Users
+    ════════════════════════════════════════════ */
+    window.toggleAllUsers = function(chk){
+      if(!CAN_WRITE) return;
+      document.querySelectorAll('.user-check').forEach(function(c){ c.checked=chk.checked; });
+      updateUserBulkBtn();
+    };
+    window.updateUserBulkBtn = function(){
+      if(!CAN_WRITE) return;
+      var ids = getCheckedUserIds();
+      var btn = document.getElementById('btnDeleteUsers');
+      if(btn) btn.disabled = !ids.length;
+      var el = document.getElementById('userBulkCount');
+      if(el) el.textContent = ids.length ? ids.length+' selected' : '';
+    };
+    function getCheckedUserIds(){
+      var ids = [];
+      document.querySelectorAll('.user-check:checked').forEach(function(c){ ids.push(parseInt(c.dataset.id)); });
+      return ids;
+    }
+
+    window.toggleUser = function(id, btn){
+      if(!CAN_WRITE) return;
+      fetch('/api/users/'+id+'/toggle', {method:'PUT', headers:{'X-CSRF-TOKEN':getCsrf()}})
+        .then(function(r){ return r.json(); })
+        .then(function(d){
+          if(!d.success) return;
+          var enabled = d.enabled;
+          btn.querySelector('span').textContent = enabled ? 'Deactivate' : 'Activate';
+          btn.dataset.enabled = enabled;
+          var statusCell = document.getElementById('user-status-'+id);
+          if(statusCell){
+            statusCell.innerHTML = enabled
+              ? '<span class="badge badge-ok">Active</span>'
+              : '<span class="badge badge-muted">Inactive</span>';
+          }
+        });
+    };
+
+    window.deleteSelectedUsers = function(){
+      if(!CAN_WRITE) return;
+      var ids = getCheckedUserIds();
+      if(!ids.length) return;
+      if(!confirm('Delete '+ids.length+' user(s)? This cannot be undone.')) return;
+      Promise.all(ids.map(function(id){
+        return fetch('/api/users/'+id, {method:'DELETE', headers:{'X-CSRF-TOKEN':getCsrf()}});
+      })).then(function(){
+        ids.forEach(function(id){
+          var row = document.getElementById('user-row-'+id);
+          if(row) row.remove();
+        });
+        var remaining = document.querySelectorAll('#usersTable tbody tr:not(.table-empty)').length;
+        var uEl = document.getElementById('userCount');
+        if(uEl) uEl.textContent = remaining ? remaining+' users' : '';
+        var chkAll = document.getElementById('checkAllUsers');
+        if(chkAll) chkAll.checked = false;
+        updateUserBulkBtn();
+      }).catch(function(){ alert('Failed to delete some users.'); });
+    };
+
+    /* ════════════════════════════════════════════
+       User Groups
+    ════════════════════════════════════════════ */
+    window.toggleAllGroups = function(chk){
+      if(!CAN_WRITE) return;
+      document.querySelectorAll('.group-check').forEach(function(c){ c.checked=chk.checked; });
+      updateGroupBulkBtn();
+    };
+    window.updateGroupBulkBtn = function(){
+      if(!CAN_WRITE) return;
+      var ids = getCheckedGroupIds();
+      var btn = document.getElementById('btnDeleteGroups');
+      if(btn) btn.disabled = !ids.length;
+      var el = document.getElementById('groupBulkCount');
+      if(el) el.textContent = ids.length ? ids.length+' selected' : '';
+    };
+    function getCheckedGroupIds(){
+      var ids = [];
+      document.querySelectorAll('.group-check:checked').forEach(function(c){ ids.push(parseInt(c.dataset.id)); });
+      return ids;
+    }
+
+    window.addGroup = function(){
+      if(!CAN_WRITE) return;
+      var name = prompt('Group name:'); if(!name) return;
+      var desc = prompt('Description (optional):') || '';
+      fetch('/api/user-groups/add',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','X-CSRF-TOKEN':getCsrf()},
+        body: JSON.stringify({name:name, description:desc})
+      }).then(function(r){ return r.json(); }).then(function(d){
+        if(d.success) location.reload(); else alert(d.error);
+      });
+    };
+
+    window.deleteSelectedGroups = function(){
+      if(!CAN_WRITE) return;
+      var ids = getCheckedGroupIds();
+      if(!ids.length) return;
+      if(!confirm('Delete '+ids.length+' group(s)?')) return;
+      Promise.all(ids.map(function(id){
+        return fetch('/api/user-groups/'+id, {method:'DELETE', headers:{'X-CSRF-TOKEN':getCsrf()}});
+      })).then(function(){
+        ids.forEach(function(id){
+          var row = document.getElementById('group-row-'+id);
+          if(row) row.remove();
+        });
+        var remaining = document.querySelectorAll('#groupsTable tbody tr:not(.table-empty)').length;
+        var gEl = document.getElementById('groupCount');
+        if(gEl) gEl.textContent = remaining ? remaining+' groups' : '';
+        var chkAll = document.getElementById('checkAllGroups');
+        if(chkAll) chkAll.checked = false;
+        updateGroupBulkBtn();
+      }).catch(function(){ alert('Failed to delete some groups.'); });
+    };
+
+  })();
+  </script>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="content">
+
+  <input type="hidden" id="canWriteData" th:value="${canWrite}">
+
+  <!-- Add Template Modal -->
+  <div id="addTemplateModal" class="modal-backdrop" style="display:none;">
+    <div class="modal-box">
+      <div class="modal-head">
+        <span class="modal-title">Add Template</span>
+        <button class="modal-close" onclick="closeModal('addTemplateModal')">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><line x1="1" y1="1" x2="13" y2="13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><line x1="13" y1="1" x2="1" y2="13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Template Name *</label>
+          <input type="text" class="form-control" id="tplName" placeholder="e.g. Linux Basic">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Description</label>
+          <input type="text" class="form-control" id="tplDesc" placeholder="Optional">
+        </div>
+        <div class="form-group">
+          <label class="form-label">OS Type</label>
+          <select class="form-control" id="tplOs">
+            <option value="Any">Any</option>
+            <option value="Linux">Linux</option>
+            <option value="Windows">Windows</option>
+          </select>
+        </div>
+        <div id="addTplError" class="modal-error" style="display:none;"></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-secondary" onclick="closeModal('addTemplateModal')">Cancel</button>
+        <button class="btn btn-primary" onclick="submitAddTemplate()">Add Template</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <div class="toolbar-left">
+      <input type="text" class="search-input" placeholder="Search templates…"
+             oninput="filterTable('tplTable', this.value)">
+    </div>
+    <div class="toolbar-right">
+      <button th:if="${canWrite}" class="btn btn-primary" onclick="openModal('addTemplateModal')">+ Add Template</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Templates</span>
+      <span class="card-count" id="tplCount"></span>
+    </div>
+    <table class="data-table" id="tplTable">
+      <thead>
+        <tr>
+          <th th:if="${canWrite}" style="width:36px;"><input type="checkbox" id="checkAll" onchange="toggleAll(this)"></th>
+          <th th:unless="${canWrite}" style="width:36px;"></th>
+          <th>Name</th><th>OS Type</th><th>Checks</th><th>CPU Thr.</th><th>Mem Thr.</th><th>Created</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr th:if="${#lists.isEmpty(templates)}">
+          <td colspan="7" class="table-empty">No templates registered yet.</td>
+        </tr>
+        <tr th:each="t : ${templates}" th:id="'tpl-row-' + ${t.id}">
+          <td style="text-align:center;">
+            <input th:if="${canWrite}" type="checkbox" class="tpl-check" th:data-id="${t.id}" onchange="updateBulkBtn()">
+          </td>
+          <td class="td-mono td-bold">
+            <a th:href="'/configuration/templates/' + ${t.id}"
+               style="color:var(--accent);text-decoration:none;"
+               th:text="${t.name}">—</a>
+          </td>
+          <td th:text="${t.osType ?: 'Any'}">Any</td>
+          <td>
+            <span th:if="${t.checkCpu}"     class="badge badge-ok"   style="margin-right:3px;">CPU</span>
+            <span th:if="${t.checkMemory}"  class="badge badge-ok"   style="margin-right:3px;">MEM</span>
+            <span th:if="${t.checkDisk}"    class="badge badge-warn" style="margin-right:3px;">DISK</span>
+            <span th:if="${t.checkNetwork}" class="badge badge-warn" style="margin-right:3px;">NET</span>
+          </td>
+          <td class="td-mono" th:text="${t.cpuThreshold + '%'}">90%</td>
+          <td class="td-mono" th:text="${t.memoryThreshold + '%'}">90%</td>
+          <td class="td-mono td-muted"
+              th:text="${t.createdAt != null ? #temporals.format(t.createdAt,'yyyy-MM-dd HH:mm') : '—'}">—</td>
+        </tr>
+      </tbody>
+    </table>
+    <div th:if="${canWrite}" style="display:flex;align-items:center;gap:8px;padding:10px 18px;border-top:1px solid var(--border);background:var(--raised);">
+      <span style="font-size:12.5px;color:var(--text-muted);" id="selectedCount"></span>
+      <button class="btn btn-danger btn-sm" id="btnDeleteSelected" onclick="bulkDelete()" disabled>Delete</button>
+    </div>
+  </div>
+
+  <script>
+  (function(){
+    var CAN_WRITE = document.getElementById('canWriteData').value === 'true';
+
+    var rows = document.querySelectorAll('#tplTable tbody tr:not(.table-empty)');
+    var el = document.getElementById('tplCount');
+    if(el) el.textContent = rows.length ? rows.length + ' templates' : '';
+
+    window.filterTable = function(id, kw) {
+      kw = kw.toLowerCase();
+      document.querySelectorAll('#'+id+' tbody tr').forEach(function(r) {
+        r.style.display = r.textContent.toLowerCase().includes(kw) ? '' : 'none';
+      });
+    };
+    window.openModal  = function(id){ document.getElementById(id).style.display='flex'; };
+    window.closeModal = function(id){ document.getElementById(id).style.display='none'; };
+
+    window.toggleAll = function(chk) {
+      if(!CAN_WRITE) return;
+      document.querySelectorAll('.tpl-check').forEach(function(c){ c.checked=chk.checked; });
+      updateBulkBtn();
+    };
+
+    function getSelIds() {
+      var ids = [];
+      document.querySelectorAll('.tpl-check:checked').forEach(function(c){ ids.push(parseInt(c.dataset.id)); });
+      return ids;
+    }
+
+    window.updateBulkBtn = function() {
+      if(!CAN_WRITE) return;
+      var ids = getSelIds();
+      document.getElementById('selectedCount').textContent = ids.length ? ids.length+' selected' : '';
+      document.getElementById('btnDeleteSelected').disabled = !ids.length;
+      var all = document.querySelectorAll('.tpl-check');
+      var chkAll = document.getElementById('checkAll');
+      if(chkAll) chkAll.checked = all.length > 0 && ids.length === all.length;
+    };
+
+    window.bulkDelete = function() {
+      if(!CAN_WRITE) return;
+      var ids = getSelIds();
+      if(!ids.length) return;
+      if(!confirm('Delete '+ids.length+' template(s)? All linked items and triggers will also be deleted.')) return;
+      Promise.all(ids.map(function(id){
+        return fetch('/api/templates/'+id, {method:'DELETE', headers:{'X-CSRF-TOKEN':getCsrf()}});
+      })).then(function(){
+        ids.forEach(function(id){ document.getElementById('tpl-row-'+id)?.remove(); });
+        updateBulkBtn();
+        var chkAll = document.getElementById('checkAll');
+        if(chkAll) chkAll.checked = false;
+        var remaining = document.querySelectorAll('#tplTable tbody tr:not(.table-empty)');
+        if(el) el.textContent = remaining.length ? remaining.length+' templates' : '';
+      }).catch(function(){ alert('An error occurred while deleting.'); });
+    };
+
+    window.submitAddTemplate = function() {
+      if(!CAN_WRITE) return;
+      var name  = document.getElementById('tplName').value.trim();
+      var errEl = document.getElementById('addTplError');
+      errEl.style.display = 'none';
+      if(!name){ errEl.textContent='Name is required.'; errEl.style.display='block'; return; }
+      fetch('/api/templates/add', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','X-CSRF-TOKEN':getCsrf()},
+        body: JSON.stringify({
+          name: name,
+          description: document.getElementById('tplDesc').value.trim(),
+          osType: document.getElementById('tplOs').value
+        })
+      }).then(function(r){ return r.json(); }).then(function(d){
+        if(d.success){ closeModal('addTemplateModal'); location.reload(); }
+        else{ errEl.textContent=d.error; errEl.style.display='block'; }
+      }).catch(function(){ errEl.textContent='Request failed.'; errEl.style.display='block'; });
+    };
+  })();
+  </script>
+
+</div>
+</body>
+</html>

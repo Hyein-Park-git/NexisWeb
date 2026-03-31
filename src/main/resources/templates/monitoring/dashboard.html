@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="content">
+
+<div class="dash-grid">
+
+  <!-- ══ ROW 1: System Info + Clock ══ -->
+  <div class="dash-panel" style="grid-column:span 3;">
+    <div class="panel-head">
+      <span class="panel-title">System Information</span>
+    </div>
+    <div class="panel-body panel-body--noPad">
+      <table class="dash-table">
+        <tbody>
+          <tr>
+            <td style="width:60%;color:var(--text-muted);">Nexis server is running</td>
+            <td><span class="badge badge-ok">Yes</span></td>
+          </tr>
+          <tr>
+            <td style="color:var(--text-muted);">Number of hosts (active / inactive)</td>
+            <td class="td-mono" th:text="${onlineHosts + ' / ' + offlineHosts}">0 / 0</td>
+          </tr>
+          <tr>
+            <td style="color:var(--text-muted);">Total hosts</td>
+            <td class="td-mono" th:text="${totalHosts}">0</td>
+          </tr>
+          <tr>
+            <td style="color:var(--text-muted);">Active problems</td>
+            <td class="td-mono" th:text="${#lists.size(problems)}">0</td>
+          </tr>
+          <tr>
+            <td style="color:var(--text-muted);">Metrics collected</td>
+            <td class="td-mono" th:text="${totalMetrics}">0</td>
+          </tr>
+          <tr>
+            <td style="color:var(--text-muted);">Avg CPU usage</td>
+            <td class="td-mono" id="sysAvgCpu">—</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Analog Clock -->
+  <div class="dash-panel" style="grid-column:span 1;display:flex;align-items:center;justify-content:center;">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:10px;">
+      <svg id="analogClock" width="100%" height="100%" viewBox="0 0 120 120" style="max-width:200px;max-height:200px;">
+        <circle cx="60" cy="60" r="58" fill="var(--raised)" stroke="var(--border)" stroke-width="1.5"/>
+        <g id="ticks"></g>
+        <line id="hourHand"   x1="60" y1="60" x2="60" y2="34" stroke="var(--text)"   stroke-width="4"   stroke-linecap="round"/>
+        <line id="minuteHand" x1="60" y1="60" x2="60" y2="22" stroke="var(--text)"   stroke-width="2.5" stroke-linecap="round"/>
+        <line id="secondHand" x1="60" y1="70" x2="60" y2="18" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round"/>
+        <circle cx="60" cy="60" r="4" fill="var(--accent)"/>
+        <circle cx="60" cy="60" r="2" fill="var(--raised)"/>
+      </svg>
+      <div id="digitalTime" style="font-family:var(--font-mono);font-size:14px;font-weight:500;color:var(--text);letter-spacing:2px;"></div>
+    </div>
+  </div>
+
+  <!-- ══ ROW 2: Problems by Severity ══ -->
+  <div class="dash-panel dash-panel--full">
+    <div class="panel-head">
+      <span class="panel-title">Problems by Severity</span>
+    </div>
+    <div class="panel-body" style="display:flex;gap:10px;padding:14px 18px;flex-wrap:wrap;">
+      <!-- Not classified -->
+      <div class="sev-card" style="background:#888;color:#fff;">
+        <div class="sev-num" th:text="${cntNotClassified}">0</div>
+        <div class="sev-lbl">Not classified</div>
+      </div>
+      <div class="sev-card sev-card--info">
+        <div class="sev-num" th:text="${cntInformation}">0</div>
+        <div class="sev-lbl">Info</div>
+      </div>
+      <div class="sev-card sev-card--warning">
+        <div class="sev-num" th:text="${cntWarning}">0</div>
+        <div class="sev-lbl">Warning</div>
+      </div>
+      <div class="sev-card sev-card--average">
+        <div class="sev-num" th:text="${cntAverage}">0</div>
+        <div class="sev-lbl">Average</div>
+      </div>
+      <div class="sev-card sev-card--high">
+        <div class="sev-num" th:text="${cntHigh}">0</div>
+        <div class="sev-lbl">High</div>
+      </div>
+      <div class="sev-card sev-card--disaster">
+        <div class="sev-num" th:text="${cntDisaster}">0</div>
+        <div class="sev-lbl">Disaster</div>
+      </div>
+      <!-- Host Status 요약 -->
+      <div style="margin-left:auto;display:flex;align-items:center;gap:24px;">
+        <div style="text-align:center;">
+          <div style="font-family:var(--font-mono);font-size:28px;font-weight:700;color:var(--ok);" th:text="${onlineHosts}">0</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Online</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-family:var(--font-mono);font-size:28px;font-weight:700;color:var(--danger);" th:text="${offlineHosts}">0</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Offline</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-family:var(--font-mono);font-size:28px;font-weight:700;color:var(--text);" th:text="${totalHosts}">0</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Total</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ ROW 3: Problems 테이블 (3칸) + Problem Hosts (1칸) ══ -->
+  <div class="dash-panel" style="grid-column:span 3;">
+    <div class="panel-head">
+      <span class="panel-title">Problems</span>
+      <a th:href="@{/monitoring/problems}" class="panel-link">View all →</a>
+    </div>
+    <div class="panel-body panel-body--noPad">
+      <div th:if="${problems == null or #lists.isEmpty(problems)}"
+           style="text-align:center;padding:48px 0;color:var(--text-muted);font-size:13px;">
+        <svg width="32" height="32" viewBox="0 0 16 16" fill="none" style="display:block;margin:0 auto 10px;opacity:.3">
+          <path d="M8 1.5L14.5 13H1.5L8 1.5z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+          <line x1="8" y1="6" x2="8" y2="9.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          <circle cx="8" cy="11.5" r="0.75" fill="currentColor"/>
+        </svg>
+        No active problems detected.
+      </div>
+      <table class="dash-table" th:if="${problems != null and not #lists.isEmpty(problems)}">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Severity</th>
+            <th>Hostname</th>
+            <th>Problem</th>
+            <th>Value</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr th:each="p : ${problems}">
+            <td class="td-mono td-muted" th:text="${p['collectedAt']}">—</td>
+            <td>
+              <span class="badge"
+                    th:text="${p['severity']}"
+                    th:style="${p['severity'] == 'Disaster'    ? 'background:#b71c1c;color:#fff;border-radius:2px;' :
+                                p['severity'] == 'High'        ? 'background:#e53935;color:#fff;border-radius:2px;' :
+                                p['severity'] == 'Average'     ? 'background:#e07a3d;color:#fff;border-radius:2px;' :
+                                p['severity'] == 'Warning'     ? 'background:#d4a800;color:#fff;border-radius:2px;' :
+                                p['severity'] == 'Information' ? 'background:#2e7d9e;color:#fff;border-radius:2px;' :
+                                                                  'background:#888;color:#fff;border-radius:2px;'}">—</span>
+            </td>
+            <td class="td-mono td-bold" th:text="${p['hostname']}">—</td>
+            <td th:text="${p['item']}">—</td>
+            <td class="td-mono" th:text="${p['value']}">—</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Problem Hosts -->
+  <div class="dash-panel" style="grid-column:span 1;">
+    <div class="panel-head">
+      <span class="panel-title">Problem Hosts</span>
+    </div>
+    <div class="panel-body panel-body--noPad">
+      <div th:if="${problems == null or #lists.isEmpty(problems)}"
+           style="text-align:center;color:var(--text-muted);font-size:12.5px;padding:32px 16px;">
+        All hosts are healthy.
+      </div>
+      <!-- Thymeleaf로 직접 렌더링 — JS 의존 없음 -->
+      <div th:if="${problems != null and not #lists.isEmpty(problems)}">
+        <div th:each="entry : ${problemHostMap}"
+             style="display:flex;align-items:center;justify-content:space-between;padding:9px 16px;border-bottom:1px solid var(--border-soft);">
+          <span class="td-mono" style="font-size:12px;color:var(--text);" th:text="${entry.key}">—</span>
+          <div style="display:flex;gap:4px;">
+            <span th:each="badge : ${entry.value}"
+                  class="badge"
+                  th:text="${badge['count']}"
+                  th:style="${badge['severity'] == 'Disaster' ? 'background:#b71c1c;color:#fff;border-radius:2px;' :
+                              badge['severity'] == 'High'     ? 'background:#e53935;color:#fff;border-radius:2px;' :
+                              badge['severity'] == 'Average'  ? 'background:#e07a3d;color:#fff;border-radius:2px;' :
+                              badge['severity'] == 'Warning'  ? 'background:#d4a800;color:#fff;border-radius:2px;' :
+                                                                'background:#888;color:#fff;border-radius:2px;'}">0</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /dash-grid -->
+
+<script>
+(function(){
+  // ── 아날로그 시계 눈금
+  const ticks = document.getElementById('ticks');
+  if (ticks) {
+    for (let i = 0; i < 60; i++) {
+      const angle = (i * 6 - 90) * Math.PI / 180;
+      const isMajor = i % 5 === 0;
+      const r1 = isMajor ? 46 : 52, r2 = 56;
+      const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+      line.setAttribute('x1', 60 + r1 * Math.cos(angle));
+      line.setAttribute('y1', 60 + r1 * Math.sin(angle));
+      line.setAttribute('x2', 60 + r2 * Math.cos(angle));
+      line.setAttribute('y2', 60 + r2 * Math.sin(angle));
+      line.setAttribute('stroke', isMajor ? 'var(--text-muted)' : 'var(--border)');
+      line.setAttribute('stroke-width', isMajor ? '2' : '1');
+      ticks.appendChild(line);
+    }
+  }
+
+  function updateClock() {
+    const now = new Date();
+    const h = now.getHours() % 12, m = now.getMinutes(), s = now.getSeconds();
+    const hDeg = (h * 30) + (m * 0.5) - 90;
+    const mDeg = (m * 6)  + (s * 0.1) - 90;
+    const sDeg = (s * 6)  - 90;
+    const setHand = (id, deg, len, tail) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const rad = deg * Math.PI / 180;
+      el.setAttribute('x1', tail ? 60 + tail * Math.cos(rad + Math.PI) : 60);
+      el.setAttribute('y1', tail ? 60 + tail * Math.sin(rad + Math.PI) : 60);
+      el.setAttribute('x2', 60 + len * Math.cos(rad));
+      el.setAttribute('y2', 60 + len * Math.sin(rad));
+    };
+    setHand('hourHand',   hDeg, 26, 0);
+    setHand('minuteHand', mDeg, 38, 0);
+    setHand('secondHand', sDeg, 42, 10);
+    const dig = document.getElementById('digitalTime');
+    if (dig) dig.textContent = now.toLocaleTimeString('en-GB', { hour12:false });
+  }
+  updateClock();
+  setInterval(updateClock, 1000);
+
+  // ── Avg CPU
+  fetch('/api/metrics/latest-avg')
+    .then(r => r.json())
+    .then(d => {
+      if (d.avgCpu != null)
+        document.getElementById('sysAvgCpu').textContent = d.avgCpu.toFixed(1) + '%';
+    })
+    .catch(() => {});
+})();
+</script>
+
+</div>
+</body>
+</html>

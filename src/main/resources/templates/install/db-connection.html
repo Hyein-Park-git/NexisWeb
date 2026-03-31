@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="content">
+    <div class="inst-card">
+        <div class="inst-card-head">
+            <div class="inst-card-title">Configure DB connection</div>
+            <div class="inst-card-desc">Enter your database connection details and test the connection.</div>
+        </div>
+        <form th:action="@{/install/db-connection}" method="post">
+            <div class="inst-card-body">
+                <div th:if="${error}" class="inst-alert inst-alert--err" style="margin-bottom:14px;">
+                    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><circle cx="8" cy="8" r="7.5" stroke="currentColor"/><line x1="5.5" y1="5.5" x2="10.5" y2="10.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="10.5" y1="5.5" x2="5.5" y2="10.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                    <span th:text="${error}"></span>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Database</label>
+                    <select name="dbType" id="dbType" class="form-control" onchange="onDbTypeChange()">
+                        <option value="MySQL"      th:selected="${config.dbType=='MySQL'}">MySQL</option>
+                        <option value="MariaDB"    th:selected="${config.dbType=='MariaDB'}">MariaDB</option>
+                        <option value="PostgreSQL" th:selected="${config.dbType=='PostgreSQL'}">PostgreSQL</option>
+                    </select>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 120px;gap:10px;">
+                    <div class="form-group">
+                        <label class="form-label">Host</label>
+                        <input type="text" name="dbHost" id="dbHost" class="form-control" th:value="${config.dbHost}" placeholder="localhost">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Port</label>
+                        <input type="text" name="dbPort" id="dbPort" class="form-control" th:value="${config.dbPort}"
+                               oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Database name</label>
+                    <input type="text" name="dbName" id="dbName" class="form-control" th:value="${config.dbName}" placeholder="nexis">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">User</label>
+                    <input type="text" name="dbUser" id="dbUser" class="form-control" th:value="${config.dbUser}">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Password</label>
+                    <input type="password" name="dbPassword" id="dbPassword" class="form-control" th:value="${config.dbPassword}">
+                </div>
+                <div class="inst-test-box">
+                    <div class="inst-test-label">Connection test</div>
+                    <div id="dbTestResult" class="inst-test-result" style="display:none;"></div>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="testDbConnection()">Test connection</button>
+                </div>
+            </div>
+            <div class="inst-card-foot">
+                <a th:href="@{/install/prerequisites}" class="btn btn-secondary">← Previous</a>
+                <button type="submit" class="btn btn-primary">Next step →</button>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        const DEFAULT_PORTS = { MySQL:'3306', MariaDB:'3306', PostgreSQL:'5432' };
+        function onDbTypeChange() {
+            const portEl = document.getElementById('dbPort');
+            if (!portEl.dataset.userEdited)
+                portEl.value = DEFAULT_PORTS[document.getElementById('dbType').value] || '3306';
+        }
+        document.getElementById('dbPort').addEventListener('input', function(){ this.dataset.userEdited='true'; });
+
+        function testDbConnection() {
+            const type=document.getElementById('dbType').value, host=document.getElementById('dbHost').value.trim(),
+                  port=parseInt(document.getElementById('dbPort').value)||3306,
+                  name=document.getElementById('dbName').value.trim(), user=document.getElementById('dbUser').value.trim(),
+                  password=document.getElementById('dbPassword').value;
+            if(!host||!name||!user){showDbResult(false,'Host, Database name, and User are required.');return;}
+            const el=document.getElementById('dbTestResult');
+            el.style.display='flex'; el.className='inst-test-result inst-test-result--pending'; el.innerHTML='Connecting…';
+            fetch('/api/install/test-db',{method:'POST',headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({dbType:type,dbHost:host,dbPort:port,dbName:name,dbUser:user,dbPassword:password})})
+            .then(r=>r.json()).then(d=>showDbResult(d.success,d.message))
+            .catch(()=>showDbResult(false,'An error occurred during the connection test.'));
+        }
+        function showDbResult(ok,msg) {
+            const el=document.getElementById('dbTestResult');
+            el.style.display='flex'; el.className='inst-test-result '+(ok?'inst-test-result--ok':'inst-test-result--err');
+            el.innerHTML=`<svg width="13" height="13" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><circle cx="8" cy="8" r="7.5" stroke="currentColor"/>
+                ${ok?'<polyline points="5,8.5 7,10.5 11,6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>'
+                   :'<line x1="5.5" y1="5.5" x2="10.5" y2="10.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="10.5" y1="5.5" x2="5.5" y2="10.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>'}
+                </svg>${msg}`;
+        }
+        onDbTypeChange();
+    </script>
+</div>
+</body>
+</html>

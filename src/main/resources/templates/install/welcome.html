@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="content">
+    <div class="inst-card">
+        <div class="inst-card-head">
+            <div class="inst-card-title">Welcome to Nexis</div>
+            <div class="inst-card-desc">Welcome to the Nexis Monitoring Platform setup wizard.</div>
+        </div>
+        <div class="inst-card-body">
+            <div class="welcome-hero">
+                <div class="welcome-icon">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                        <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                        <path d="M2 17l10 5 10-5"            stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                        <path d="M2 12l10 5 10-5"            stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+                <h2 class="welcome-title">Nexis Monitoring Platform</h2>
+                <p class="welcome-lead">A high-performance monitoring solution based on agents and servers.<br>Complete the setup wizard to get started in just a few steps.</p>
+                <div class="welcome-features">
+                    <div class="feature-item"><span class="feature-icon">📡</span><div><div class="feature-label">Agent Monitoring</div><div class="feature-desc">Real-time display of collected metrics</div></div></div>
+                    <div class="feature-item"><span class="feature-icon">🔔</span><div><div class="feature-label">Alert &amp; Problems</div><div class="feature-desc">Threshold-based alert system</div></div></div>
+                    <div class="feature-item"><span class="feature-icon">🗄️</span><div><div class="feature-label">Data Storage</div><div class="feature-desc">Collected data stored in database</div></div></div>
+                    <div class="feature-item"><span class="feature-icon">👤</span><div><div class="feature-label">User Management</div><div class="feature-desc">Role-based access control</div></div></div>
+                </div>
+            </div>
+        </div>
+        <div class="inst-card-foot">
+            <span></span>
+            <a th:href="@{/install/prerequisites}" class="btn btn-primary">Next step →</a>
+        </div>
+    </div>
+</div>
+</body>
+</html>

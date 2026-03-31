@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="content">
+
+  <div class="card" style="max-width:560px;">
+    <div class="card-header">
+      <span class="card-title">Profile</span>
+    </div>
+    <div style="padding:24px;">
+      <div style="display:flex;align-items:center;gap:18px;margin-bottom:28px;">
+        <div style="width:56px;height:56px;border-radius:50%;background:var(--accent-dim);border:2px solid rgba(61,141,224,.3);display:flex;align-items:center;justify-content:center;color:var(--accent);flex-shrink:0;">
+          <svg width="26" height="26" viewBox="0 0 16 16" fill="none">
+            <circle cx="8" cy="5.5" r="2.5" stroke="currentColor" stroke-width="1.4"/>
+            <path d="M2.5 13.5c0-3 2.5-5 5.5-5s5.5 2 5.5 5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div>
+          <div style="font-size:16px;font-weight:600;color:var(--text);" th:text="${username}">Admin</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Administrator</div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Username</label>
+        <input type="text" class="form-control" id="usernameField"
+               th:value="${username}" readonly style="opacity:.7;cursor:not-allowed;">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Current Password</label>
+        <input type="password" class="form-control" id="currentPw" placeholder="Enter current password">
+      </div>
+      <div class="form-group">
+        <label class="form-label">New Password</label>
+        <input type="password" class="form-control" id="newPw" placeholder="Enter new password">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Confirm New Password</label>
+        <input type="password" class="form-control" id="confirmPw" placeholder="Confirm new password">
+      </div>
+      <div id="profileMsg" style="display:none;font-size:12.5px;padding:8px 12px;border-radius:6px;margin-bottom:12px;"></div>
+      <button class="btn btn-primary" onclick="saveProfile()">Save Changes</button>
+    </div>
+  </div>
+
+  <script>
+  function saveProfile() {
+    const username  = document.getElementById('usernameField').value;
+    const currentPw = document.getElementById('currentPw').value;
+    const newPw     = document.getElementById('newPw').value;
+    const confirmPw = document.getElementById('confirmPw').value;
+    const msg       = document.getElementById('profileMsg');
+
+    // 유효성 검사
+    if (!currentPw) {
+      showMsg('Current password is required.', false);
+      return;
+    }
+    if (!newPw) {
+      showMsg('New password is required.', false);
+      return;
+    }
+    if (newPw !== confirmPw) {
+      showMsg('New passwords do not match.', false);
+      return;
+    }
+    if (newPw.length < 4) {
+      showMsg('Password must be at least 4 characters.', false);
+      return;
+    }
+
+    fetch('/api/users/change-password', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-TOKEN': getCsrf()
+      },
+      body: JSON.stringify({ username, currentPassword: currentPw, newPassword: newPw })
+    })
+    .then(r => r.json())
+    .then(d => {
+      if (d.success) {
+        showMsg('Password changed successfully.', true);
+        document.getElementById('currentPw').value = '';
+        document.getElementById('newPw').value = '';
+        document.getElementById('confirmPw').value = '';
+      } else {
+        showMsg(d.error || 'Failed to change password.', false);
+      }
+    })
+    .catch(() => showMsg('Request failed.', false));
+  }
+
+  function showMsg(text, ok) {
+    const msg = document.getElementById('profileMsg');
+    msg.textContent = text;
+    msg.style.background = ok ? 'rgba(46,192,138,.1)'  : 'rgba(224,82,82,.1)';
+    msg.style.border      = ok ? '1px solid rgba(46,192,138,.35)' : '1px solid rgba(224,82,82,.4)';
+    msg.style.color       = ok ? 'var(--ok)' : 'var(--danger)';
+    msg.style.display     = 'block';
+  }
+  </script>
+
+</div>
+</body>
+</html>

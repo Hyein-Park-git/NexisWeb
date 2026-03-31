@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="content">
+    <div class="inst-card">
+        <div class="inst-card-head">
+            <div class="inst-card-title">Nexis Server Details</div>
+            <div class="inst-card-desc">Enter Nexis server connection details and test.</div>
+        </div>
+        <form th:action="@{/install/server-details}" method="post">
+            <div class="inst-card-body">
+                <div th:if="${error}" class="inst-alert inst-alert--err" style="margin-bottom:14px;">
+                    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><circle cx="8" cy="8" r="7.5" stroke="currentColor"/><line x1="5.5" y1="5.5" x2="10.5" y2="10.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="10.5" y1="5.5" x2="5.5" y2="10.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                    <span th:text="${error}"></span>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Nexis Server Name</label>
+                    <input type="text" name="serverName" class="form-control" th:value="${config.serverName}" placeholder="e.g. Nexis Server 1">
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 120px;gap:10px;">
+                    <div class="form-group">
+                        <label class="form-label">Host</label>
+                        <input type="text" name="serverHost" id="serverHost" class="form-control" th:value="${config.serverHost}" placeholder="localhost">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Port</label>
+                        <input type="text" name="serverPort" id="serverPort" class="form-control" th:value="${config.serverPort}" placeholder="9000"
+                               oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+                    </div>
+                </div>
+                <div class="inst-test-box">
+                    <div class="inst-test-label">Connection Test</div>
+                    <div style="font-size:12px;color:var(--inst-muted);margin-bottom:10px;">Testing is optional — you may skip to the next step.</div>
+                    <div id="serverTestResult" class="inst-test-result" style="display:none;"></div>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="testServerConnection()">Test Connection</button>
+                </div>
+            </div>
+            <div class="inst-card-foot">
+                <a th:href="@{/install/db-connection}" class="btn btn-secondary">← Back</a>
+                <button type="submit" class="btn btn-primary">Next Step →</button>
+            </div>
+        </form>
+    </div>
+    <script>
+        function testServerConnection() {
+            const host=document.getElementById('serverHost').value.trim(), port=document.getElementById('serverPort').value.trim();
+            if(!host||!port){showResult(false,'Please enter both Host and Port.');return;}
+            const el=document.getElementById('serverTestResult');
+            el.style.display='flex'; el.className='inst-test-result inst-test-result--pending'; el.textContent='Connecting…';
+            fetch(`/api/install/test-server?host=${encodeURIComponent(host)}&port=${encodeURIComponent(port)}`)
+                .then(r=>r.json()).then(d=>showResult(d.success,d.message))
+                .catch(()=>showResult(false,'Error occurred during connection test.'));
+        }
+        function showResult(ok,msg) {
+            const el=document.getElementById('serverTestResult');
+            el.style.display='flex'; el.className='inst-test-result '+(ok?'inst-test-result--ok':'inst-test-result--err');
+            el.textContent=(ok?'✓ ':'✗ ')+msg;
+        }
+    </script>
+</div>
+</body>
+</html>

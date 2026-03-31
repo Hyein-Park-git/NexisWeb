@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login — Nexis</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <script>(function(){ document.documentElement.setAttribute('data-theme', localStorage.getItem('nexis-theme')||'light'); })();</script>
+    <style>
+        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+        :root{
+          --accent:#3d8de0;--accent-dim:rgba(61,141,224,.15);--ok:#2ec08a;--danger:#e05252;
+          --font-ui:'Roboto','Segoe UI',system-ui,sans-serif;
+          --font-mono:Consolas,'Courier New',monospace;
+        }
+        [data-theme="dark"] {--bg:#0f1117;--surface:#161b26;--raised:#1d2435;--border:rgba(255,255,255,.10);
+                             --text:#e2e6ef;--text-dim:#8b93a8;--muted:#525c72;}
+        [data-theme="light"]{--bg:#f0f2f7;--surface:#ffffff;--raised:#f8f9fc;--border:rgba(0,0,0,.13);
+                             --text:#1a2035;--text-dim:#5a6278;--muted:#9ba3b8;}
+        html{font-size:16px;}
+        body{font-family:var(--font-ui);background:var(--bg);color:var(--text);min-height:100vh;
+             display:flex;align-items:center;justify-content:center;-webkit-font-smoothing:antialiased;}
+        body::before{content:'';position:fixed;inset:0;pointer-events:none;
+            background:radial-gradient(circle at 20% 20%,rgba(61,141,224,.07) 0%,transparent 50%),
+                       radial-gradient(circle at 80% 80%,rgba(46,192,138,.05) 0%,transparent 50%);}
+        .wrap{width:100%;max-width:380px;padding:16px;position:relative;z-index:1;margin:auto;}
+        .brand{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:28px;margin-top:0;}
+        .brand-img {
+		    height: 50px;        /* 이미지 높이 조절 */
+		    width: auto;
+		    object-fit: contain;
+		}
+        .card{background:var(--surface);border:1px solid var(--border);border-radius:2px;
+              padding:28px 28px 24px;box-shadow:0 2px 8px rgba(0,0,0,.2);}
+        .card-title{font-size:15px;font-weight:600;color:var(--text);margin-bottom:3px;text-transform:uppercase;letter-spacing:.3px;}
+        .card-sub{font-size:12.5px;color:var(--muted);margin-bottom:22px;}
+        .alert{display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:2px;font-size:12.5px;margin-bottom:16px;}
+        .alert-err{background:rgba(224,82,82,.1);border:1px solid rgba(224,82,82,.4);color:var(--danger);}
+        .alert-ok {background:rgba(46,192,138,.1);border:1px solid rgba(46,192,138,.35);color:var(--ok);}
+        .form-group{margin-bottom:13px;}
+        .form-label{display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.7px;
+                    color:var(--text-dim);margin-bottom:5px;}
+        .form-control{width:100%;height:36px;padding:0 11px;background:var(--raised);border:1px solid var(--border);
+                      border-radius:2px;color:var(--text);font-size:13px;font-family:var(--font-ui);outline:none;
+                      transition:border-color 80ms;}
+        .form-control:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(61,141,224,.10);}
+        .form-control::placeholder{color:var(--muted);}
+        .btn-submit{width:100%;height:38px;background:var(--accent);border:none;border-radius:2px;color:#fff;
+                    font-size:14px;font-family:var(--font-ui);font-weight:600;cursor:pointer;margin-top:8px;
+                    transition:background 80ms;}
+        .btn-submit:hover{background:#2d7bcf;}
+        .footer{text-align:center;font-size:11.5px;color:var(--muted);margin-top:18px;}
+        .theme-btn{position:fixed;top:16px;right:16px;display:flex;align-items:center;gap:5px;padding:5px 10px;
+                   background:var(--surface);border:1px solid var(--border);border-radius:2px;font-size:12px;
+                   color:var(--text-dim);font-family:var(--font-ui);cursor:pointer;transition:background 80ms;z-index:10;}
+        .theme-btn:hover{background:var(--raised);}
+    </style>
+</head>
+<body>
+
+<button class="theme-btn" onclick="toggleTheme()">
+    <span id="themeIcon">☀️</span><span id="themeLabel">Light</span>
+</button>
+
+<div class="wrap">
+    <div class="brand">
+	    <img src="images/nexis.png" alt="Nexis" class="brand-img">
+	</div>
+
+    <div class="card">
+        <div class="card-title">Sign in</div>
+        <div class="card-sub">NEXIS Monitoring Platform</div>
+
+        <div th:if="${errorMessage}"  class="alert alert-err">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7.5" stroke="currentColor"/><line x1="5.5" y1="5.5" x2="10.5" y2="10.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="10.5" y1="5.5" x2="5.5" y2="10.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            <span th:text="${errorMessage}">Invalid username or password</span>
+        </div>
+        <div th:if="${logoutMessage}" class="alert alert-ok">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7.5" stroke="currentColor"/><polyline points="5,8.5 7,10.5 11,6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span th:text="${logoutMessage}">Logged out successfully.</span>
+        </div>
+
+        <form th:action="@{/login}" method="post">
+            <div class="form-group">
+                <label class="form-label">Username</label>
+                <input type="text" name="username" class="form-control" placeholder="Enter username" required autocomplete="username">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Password</label>
+                <input type="password" name="password" class="form-control" placeholder="Enter password" required autocomplete="current-password">
+            </div>
+            <button type="submit" class="btn-submit">Sign in →</button>
+        </form>
+    </div>
+
+    <div class="footer">&copy; 2026 Nexis Monitoring Platform</div>
+</div>
+
+<script>
+function toggleTheme() {
+    const html=document.documentElement, icon=document.getElementById('themeIcon'), label=document.getElementById('themeLabel');
+    const next=html.getAttribute('data-theme')==='dark'?'light':'dark';
+    html.setAttribute('data-theme',next);
+    icon.textContent=next==='dark'?'☀️':'🌙';
+    label.textContent=next==='dark'?'Light':'Dark';
+    localStorage.setItem('nexis-theme',next);
+}
+(function(){
+    const t=localStorage.getItem('nexis-theme')||'light';
+    const icon=document.getElementById('themeIcon'),label=document.getElementById('themeLabel');
+    if(t==='dark'){icon.textContent='☀️';label.textContent='Light';}
+})();
+</script>
+</body>
+</html>

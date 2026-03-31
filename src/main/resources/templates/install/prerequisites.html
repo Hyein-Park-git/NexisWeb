@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="content">
+    <div class="inst-card">
+        <div class="inst-card-head">
+            <div class="inst-card-title">Check of pre-requisites</div>
+            <div class="inst-card-desc">Verify the pre-requisites for Nexis installation.</div>
+        </div>
+        <div class="inst-card-body">
+
+            <div th:if="${check.allOk}"  class="inst-alert inst-alert--ok">✓ All pre-requirements are met. You may proceed to the next step.</div>
+            <div th:unless="${check.allOk}" class="inst-alert inst-alert--err">✗ Some requirements are not met. Please check the items below.</div>
+
+            <div class="prereq-list">
+                <!-- Java -->
+                <div class="prereq-item">
+                    <div class="prereq-left">
+                        <span class="prereq-emoji">☕</span>
+                        <div>
+                            <div class="prereq-label">Java Runtime Environment</div>
+                            <div class="prereq-sub">
+                                JRE <span th:text="${check.javaMinVersion}">17</span> or higher required
+                                <span th:unless="${check.javaOk}" style="color:var(--inst-danger);">
+                                    — Current version (<span th:text="${check.javaMajorVersion}"></span>) is not supported
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="prereq-right">
+                        <span class="prereq-ver" th:text="${check.javaVersion}">-</span>
+                        <span th:if="${check.javaOk}"  class="prereq-badge prereq-badge--ok">✓ OK</span>
+                        <span th:unless="${check.javaOk}" class="prereq-badge prereq-badge--err">✗ FAIL</span>
+                    </div>
+                </div>
+                <!-- Config writable -->
+                <div class="prereq-item">
+                    <div class="prereq-left">
+                        <span class="prereq-emoji">📄</span>
+                        <div>
+                            <div class="prereq-label">Configuration file writable</div>
+                            <div class="prereq-sub" style="font-family:monospace;" th:text="${check.configPath}">nexis.conf</div>
+                            <div th:unless="${check.configWritable}" style="font-size:11.5px;color:var(--inst-danger);margin-top:2px;">
+                                No write permission on this path.
+                            </div>
+                        </div>
+                    </div>
+                    <div class="prereq-right">
+                        <span th:if="${check.configWritable}"  class="prereq-badge prereq-badge--ok">✓ OK</span>
+                        <span th:unless="${check.configWritable}" class="prereq-badge prereq-badge--err">✗ FAIL</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="inst-info-box">ℹ DB connection and Nexis server port can be tested in the next step.</div>
+        </div>
+        <div class="inst-card-foot">
+            <a th:href="@{/install/welcome}" class="btn btn-secondary">← Back</a>
+            <a th:href="@{/install/db-connection}" class="btn btn-primary"
+               th:style="${!check.allOk}?'opacity:0.6;pointer-events:none':''">Next Step →</a>
+        </div>
+    </div>
+</div>
+</body>
+</html>

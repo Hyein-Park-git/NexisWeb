@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="content">
+
+  <!-- Add Proxy Modal -->
+  <div id="addProxyModal" class="modal-backdrop" style="display:none;">
+    <div class="modal-box">
+      <div class="modal-head">
+        <span class="modal-title">Add Proxy</span>
+        <button class="modal-close" onclick="closeModal('addProxyModal')">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><line x1="1" y1="1" x2="13" y2="13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><line x1="13" y1="1" x2="1" y2="13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Proxy Name *</label>
+          <input type="text" class="form-control" id="pxyName" placeholder="e.g. proxy-eu-01">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 120px;gap:10px;">
+          <div class="form-group">
+            <label class="form-label">Address</label>
+            <input type="text" class="form-control" id="pxyAddr" placeholder="e.g. 192.168.1.50">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Port</label>
+            <input type="number" class="form-control" id="pxyPort" placeholder="10051">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Description</label>
+          <input type="text" class="form-control" id="pxyDesc" placeholder="Optional">
+        </div>
+        <div id="addPxyError" class="modal-error" style="display:none;"></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-secondary" onclick="closeModal('addProxyModal')">Cancel</button>
+        <button class="btn btn-primary" onclick="submitAddProxy()">Add Proxy</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <div class="toolbar-left">
+      <input type="text" class="search-input" placeholder="Search proxies…"
+             oninput="filterTable('pxyTable', this.value)">
+    </div>
+    <div class="toolbar-right">
+      <button class="btn btn-primary" onclick="openModal('addProxyModal')">+ Add Proxy</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Proxies</span>
+      <span class="card-count" id="pxyCount"></span>
+    </div>
+    <table class="data-table" id="pxyTable">
+      <thead>
+        <tr><th>Name</th><th>Address</th><th>Port</th><th>Description</th><th>Created</th><th>Actions</th></tr>
+      </thead>
+      <tbody>
+        <tr th:if="${#lists.isEmpty(proxies)}">
+          <td colspan="6" class="table-empty">No proxies registered yet.</td>
+        </tr>
+        <tr th:each="p : ${proxies}" th:id="'pxy-row-' + ${p.id}">
+          <td class="td-mono td-bold" th:text="${p.name}">—</td>
+          <td class="td-mono"         th:text="${p.address ?: '—'}">—</td>
+          <td class="td-mono"         th:text="${p.port ?: '—'}">—</td>
+          <td                         th:text="${p.description ?: '—'}">—</td>
+          <td class="td-mono td-muted"
+              th:text="${p.createdAt != null ? #temporals.format(p.createdAt,'yyyy-MM-dd HH:mm') : '—'}">—</td>
+          <td>
+            <button class="btn btn-danger btn-sm" th:onclick="'deleteProxy('+${p.id}+')'">Delete</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <script>
+  (function(){
+    const rows = document.querySelectorAll('#pxyTable tbody tr:not(.table-empty)');
+    const el = document.getElementById('pxyCount');
+    if (el) el.textContent = rows.length ? rows.length + ' proxies' : '';
+  })();
+
+  function filterTable(id, kw) {
+    kw = kw.toLowerCase();
+    document.querySelectorAll('#'+id+' tbody tr').forEach(r => {
+      r.style.display = r.textContent.toLowerCase().includes(kw) ? '' : 'none';
+    });
+  }
+  function openModal(id)  { document.getElementById(id).style.display = 'flex'; }
+  function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+  function submitAddProxy() {
+    const name  = document.getElementById('pxyName').value.trim();
+    const errEl = document.getElementById('addPxyError');
+    if (!name) { errEl.textContent = 'Name is required.'; errEl.style.display = 'block'; return; }
+    const portVal = document.getElementById('pxyPort').value;
+    fetch('/api/proxies/add', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': getCsrf() },
+      body: JSON.stringify({
+        name,
+        address:     document.getElementById('pxyAddr').value.trim(),
+        port:        portVal ? parseInt(portVal) : null,
+        description: document.getElementById('pxyDesc').value.trim()
+      })
+    })
+    .then(r => r.json())
+    .then(d => { if(d.success){closeModal('addProxyModal');location.reload();} else{errEl.textContent=d.error;errEl.style.display='block';} })
+    .catch(() => { errEl.textContent='Request failed.'; errEl.style.display='block'; });
+  }
+
+  function deleteProxy(id) {
+    if (!confirm('Delete this proxy?')) return;
+    fetch('/api/proxies/'+id, { method:'DELETE', headers:{'X-CSRF-TOKEN':getCsrf()} })
+      .then(() => document.getElementById('pxy-row-'+id)?.remove());
+  }
+  </script>
+
+</div>
+</body>
+</html>

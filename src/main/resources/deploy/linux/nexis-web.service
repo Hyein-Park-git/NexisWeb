@@ -1,0 +1,16 @@
+[Unit]
+Description=Nexis Web
+After=network.target mysqld.service mariadb.service postgresql.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/nexis-web
+ExecStart=/usr/bin/java -jar /opt/nexis-web/nexis-web.jar --spring.config.location=file:/opt/nexis-web/application.properties
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

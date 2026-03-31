@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="content">
+
+  <!-- ══ Add Group 모달 ══ -->
+  <div id="addGroupModal" class="modal-backdrop" style="display:none;">
+    <div class="modal-box" style="max-width:460px;">
+      <div class="modal-head">
+        <span class="modal-title" id="groupModalTitle">Add Host Group</span>
+        <button class="modal-close" onclick="closeModal('addGroupModal')">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <line x1="1" y1="1" x2="13" y2="13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+            <line x1="13" y1="1" x2="1"  y2="13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editGroupId">
+        <div class="form-group"><label class="form-label">Group Name *</label><input type="text" class="form-control" id="groupName" placeholder="e.g. Production Servers"></div>
+        <div class="form-group"><label class="form-label">Description</label><input type="text" class="form-control" id="groupDesc" placeholder="Optional"></div>
+        <div id="groupModalError" class="modal-error" style="display:none;"></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-secondary" onclick="closeModal('addGroupModal')">Cancel</button>
+        <button class="btn btn-primary" onclick="submitGroup()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ Add Members 모달 ══ -->
+  <div id="addMemberModal" class="modal-backdrop" style="display:none;">
+    <div class="modal-box" style="max-width:560px;">
+      <div class="modal-head">
+        <span class="modal-title">Add Hosts to Group</span>
+        <button class="modal-close" onclick="closeModal('addMemberModal')">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <line x1="1" y1="1" x2="13" y2="13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+            <line x1="13" y1="1" x2="1"  y2="13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body" style="padding:16px 20px;">
+        <input type="text" class="search-input" id="memberSearch"
+               placeholder="Search hosts…" oninput="filterMemberList(this.value)"
+               style="width:100%;margin-bottom:10px;">
+        <div id="memberHostList" style="display:flex;flex-direction:column;gap:4px;max-height:360px;overflow-y:auto;"></div>
+        <div id="addMemberError" class="modal-error" style="display:none;margin-top:8px;"></div>
+      </div>
+      <div class="modal-foot">
+        <span style="font-size:12px;color:var(--text-muted);flex:1;" id="memberSelectCount"></span>
+        <button class="btn btn-secondary" onclick="closeModal('addMemberModal')">Cancel</button>
+        <button class="btn btn-primary" onclick="submitAddMembers()">Add Selected</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ Group Detail 패널 ══ -->
+  <div id="detailPanel" style="display:none;margin-bottom:16px;">
+    <div class="card">
+      <div class="card-header" style="justify-content:space-between;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <button class="btn btn-secondary btn-sm" onclick="closeDetail()">← Back</button>
+          <span class="card-title" id="detailGroupName">—</span>
+          <span style="font-size:12.5px;color:var(--text-muted);" id="detailGroupDesc"></span>
+        </div>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-secondary btn-sm" onclick="openEditGroup()">Edit</button>
+          <button class="btn btn-primary btn-sm"   onclick="openAddMember()">+ Add Hosts</button>
+        </div>
+      </div>
+      <table class="data-table" id="memberTable">
+        <thead>
+          <tr>
+            <th style="width:36px;"><input type="checkbox" id="checkAllMembers" onchange="toggleAllMembers(this)"></th>
+            <th>Hostname</th><th>IP Address</th><th>OS</th><th>Agent</th><th style="width:80px;"></th>
+          </tr>
+        </thead>
+        <tbody id="memberTableBody">
+          <tr><td colspan="6" class="table-empty">Loading...</td></tr>
+        </tbody>
+      </table>
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 18px;border-top:1px solid var(--border);background:var(--raised);">
+        <span style="font-size:12.5px;color:var(--text-muted);flex:1;" id="memberBulkCount"></span>
+        <button class="btn btn-danger btn-sm" id="btnRemoveMembers" onclick="removeSelectedMembers()" disabled>Remove from Group</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ Groups 목록 ══ -->
+  <div id="listPanel">
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <input type="text" class="search-input" placeholder="Search groups…"
+               oninput="filterTable('hgTable', this.value)">
+      </div>
+      <div class="toolbar-right">
+        <button class="btn btn-primary" onclick="openAddGroup()">+ Add Host Group</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Host Groups</span>
+        <span class="card-count" id="hgCount"></span>
+      </div>
+      <table class="data-table" id="hgTable">
+        <thead>
+          <tr><th>Group Name</th><th>Description</th><th>Hosts</th><th>Created</th><th style="width:130px;"></th></tr>
+        </thead>
+        <tbody>
+          <tr th:if="${#lists.isEmpty(hostGroups)}">
+            <td colspan="5" class="table-empty">No host groups registered yet.</td>
+          </tr>
+          <tr th:each="g : ${hostGroups}"
+              th:id="'hg-row-' + ${g.id}"
+              style="cursor:pointer;"
+              th:attr="data-id=${g.id}, data-name=${g.name}, data-desc=${g.description ?: ''}">
+            <td class="td-mono td-bold" th:text="${g.name}">—</td>
+            <td th:text="${g.description ?: '—'}">—</td>
+            <td class="td-mono" th:text="${memberCountMap != null and memberCountMap[g.id] != null ? memberCountMap[g.id] : 0}">0</td>
+            <td class="td-mono td-muted"
+                th:text="${g.createdAt != null ? #temporals.format(g.createdAt,'yyyy-MM-dd HH:mm') : '—'}">—</td>
+            <td>
+              <div style="display:flex;gap:4px;">
+                <button class="btn btn-secondary btn-sm hg-edit-btn"
+                        th:attr="data-id=${g.id}, data-name=${g.name}, data-desc=${g.description ?: ''}">Edit</button>
+                <button class="btn btn-danger btn-sm hg-delete-btn"
+                        th:attr="data-id=${g.id}">Delete</button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+  (function(){
+    /* ── 초기화 ── */
+    var rows = document.querySelectorAll('#hgTable tbody tr:not(.table-empty)');
+    var el   = document.getElementById('hgCount');
+    if(el) el.textContent = rows.length ? rows.length + ' groups' : '';
+
+    /* ── 유틸 ── */
+    window.closeModal = function(id){ document.getElementById(id).style.display='none'; };
+    window.filterTable = function(id, kw){
+      kw = kw.toLowerCase();
+      document.querySelectorAll('#'+id+' tbody tr').forEach(function(r){
+        r.style.display = r.textContent.toLowerCase().includes(kw) ? '' : 'none';
+      });
+    };
+
+    /* ── Hash 라우터 ── */
+    function parseHash(){ return (location.hash||'').replace('#',''); }
+    window.navigateTo = function(path){ location.hash = path; };
+
+    function handleRoute(){
+      var hash = parseHash();
+      if(hash.startsWith('group/')){
+        var id  = parseInt(hash.replace('group/',''));
+        var row = document.querySelector('#hgTable tr[data-id="'+id+'"]');
+        if(row){
+          openDetailInternal(id, row.dataset.name, row.dataset.desc||'');
+        }
+      } else {
+        showList();
+      }
+    }
+    window.addEventListener('hashchange', handleRoute);
+
+    /* ── 이벤트 위임 ── */
+    var table = document.getElementById('hgTable');
+
+    table.addEventListener('click', function(e){
+      if(e.target.closest('button')) return;
+      var row = e.target.closest('tr[data-id]');
+      if(!row) return;
+      location.hash = 'group/' + row.dataset.id;
+    });
+
+    table.addEventListener('click', function(e){
+      var btn = e.target.closest('.hg-edit-btn');
+      if(!btn) return;
+      e.stopPropagation();
+      openEditGroupById(parseInt(btn.dataset.id), btn.dataset.name, btn.dataset.desc||'');
+    });
+
+    table.addEventListener('click', function(e){
+      var btn = e.target.closest('.hg-delete-btn');
+      if(!btn) return;
+      e.stopPropagation();
+      deleteHostGroup(parseInt(btn.dataset.id));
+    });
+
+    /* ════════════════════════════════════════════
+       Group CRUD
+    ════════════════════════════════════════════ */
+    window.openAddGroup = function(){
+      document.getElementById('groupModalTitle').textContent = 'Add Host Group';
+      document.getElementById('editGroupId').value = '';
+      document.getElementById('groupName').value   = '';
+      document.getElementById('groupDesc').value   = '';
+      document.getElementById('groupModalError').style.display = 'none';
+      document.getElementById('addGroupModal').style.display   = 'flex';
+    };
+
+    window.openEditGroupById = function(id, name, desc){
+      document.getElementById('groupModalTitle').textContent = 'Edit Host Group';
+      document.getElementById('editGroupId').value = id;
+      document.getElementById('groupName').value   = name;
+      document.getElementById('groupDesc').value   = desc;
+      document.getElementById('groupModalError').style.display = 'none';
+      document.getElementById('addGroupModal').style.display   = 'flex';
+    };
+
+    window.openEditGroup = function(){
+      openEditGroupById(currentGroupId, currentGroupName, currentGroupDesc);
+    };
+
+    window.submitGroup = function(){
+      var name  = document.getElementById('groupName').value.trim();
+      var desc  = document.getElementById('groupDesc').value.trim();
+      var errEl = document.getElementById('groupModalError');
+      errEl.style.display = 'none';
+      if(!name){ errEl.textContent='Group name is required.'; errEl.style.display='block'; return; }
+
+      var id     = document.getElementById('editGroupId').value;
+      var url    = id ? '/api/host-groups/'+id : '/api/host-groups/add';
+      var method = id ? 'PUT' : 'POST';
+
+      fetch(url, {
+        method: method,
+        headers: {'Content-Type':'application/json','X-CSRF-TOKEN':getCsrf()},
+        body: JSON.stringify({name:name, description:desc})
+      }).then(function(r){return r.json();}).then(function(d){
+        if(d.success){
+          closeModal('addGroupModal');
+          location.reload();
+        } else {
+          errEl.textContent = d.error || 'Failed.';
+          errEl.style.display = 'block';
+        }
+      }).catch(function(){ errEl.textContent='Request failed.'; errEl.style.display='block'; });
+    };
+
+    window.deleteHostGroup = function(id){
+      if(!confirm('Delete this host group and all its members?')) return;
+      fetch('/api/host-groups/'+id, {
+        method: 'DELETE',
+        headers: {'X-CSRF-TOKEN': getCsrf()}
+      }).then(function(){
+        var row = document.getElementById('hg-row-'+id);
+        if(row) row.remove();
+        if(currentGroupId === id) closeDetail();
+      }).catch(function(){ alert('Failed to delete.'); });
+    };
+
+    /* ════════════════════════════════════════════
+       Detail Panel
+    ════════════════════════════════════════════ */
+    var currentGroupId   = null;
+    var currentGroupName = '';
+    var currentGroupDesc = '';
+    var allHosts         = [];
+    var currentMembers   = [];
+
+    window.openDetail = function(id, name, desc){
+      location.hash = 'group/' + id;
+    };
+
+    function openDetailInternal(id, name, desc){
+      currentGroupId   = id;
+      currentGroupName = name;
+      currentGroupDesc = desc || '';
+      document.getElementById('detailGroupName').textContent = name;
+      document.getElementById('detailGroupDesc').textContent = desc || '';
+      document.getElementById('listPanel').style.display   = 'none';
+      document.getElementById('detailPanel').style.display = '';
+      loadMembers();
+    }
+
+	window.closeDetail = function(){
+	  history.back();
+	};
+
+    function showList(){
+      currentGroupId = null;
+      document.getElementById('detailPanel').style.display = 'none';
+      document.getElementById('listPanel').style.display   = '';
+    }
+
+    function loadMembers(){
+      fetch('/api/host-groups/'+currentGroupId+'/members')
+        .then(function(r){return r.json();})
+        .then(function(data){
+          currentMembers = data;
+          renderMemberTable(data);
+        }).catch(function(){
+          document.getElementById('memberTableBody').innerHTML =
+            '<tr><td colspan="6" class="table-empty">Failed to load.</td></tr>';
+        });
+    }
+
+    function renderMemberTable(data){
+      var tbody = document.getElementById('memberTableBody');
+      var chk   = document.getElementById('checkAllMembers');
+      if(chk) chk.checked = false;
+      updateMemberBulkBtn();
+      if(!data.length){
+        tbody.innerHTML = '<tr><td colspan="6" class="table-empty">No hosts in this group yet.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = data.map(function(m){
+        return '<tr>'+
+          '<td style="text-align:center;"><input type="checkbox" class="member-check" data-id="'+m.id+'" onchange="updateMemberBulkBtn()"></td>'+
+          '<td class="td-mono td-bold">'+esc(m.hostname)+'</td>'+
+          '<td class="td-mono">'+esc(m.ipAddress)+'</td>'+
+          '<td>'+esc(m.os)+'</td>'+
+          '<td>'+(m.agentActive
+            ?'<span class="badge badge-ok">Active</span>'
+            :'<span class="badge badge-danger">Inactive</span>')+
+          '</td>'+
+          '<td><button class="btn btn-danger btn-sm" onclick="removeMember('+m.id+')">Remove</button></td>'+
+        '</tr>';
+      }).join('');
+    }
+
+    window.toggleAllMembers = function(chk){
+      document.querySelectorAll('.member-check').forEach(function(c){ c.checked=chk.checked; });
+      updateMemberBulkBtn();
+    };
+    window.updateMemberBulkBtn = function(){
+      var ids = getCheckedMemberIds();
+      document.getElementById('btnRemoveMembers').disabled = !ids.length;
+      document.getElementById('memberBulkCount').textContent = ids.length ? ids.length+' selected' : '';
+    };
+    function getCheckedMemberIds(){
+      var ids = [];
+      document.querySelectorAll('.member-check:checked').forEach(function(c){ ids.push(parseInt(c.dataset.id)); });
+      return ids;
+    }
+
+    window.removeMember = function(memberId){
+      if(!confirm('Remove this host from the group?')) return;
+      fetch('/api/host-groups/'+currentGroupId+'/members/'+memberId, {
+        method: 'DELETE',
+        headers: {'X-CSRF-TOKEN': getCsrf()}
+      }).then(function(){ loadMembers(); }).catch(function(){ alert('Failed.'); });
+    };
+
+    window.removeSelectedMembers = function(){
+      var ids = getCheckedMemberIds();
+      if(!ids.length) return;
+      if(!confirm('Remove '+ids.length+' host(s) from the group?')) return;
+      Promise.all(ids.map(function(id){
+        return fetch('/api/host-groups/'+currentGroupId+'/members/'+id, {
+          method: 'DELETE', headers: {'X-CSRF-TOKEN': getCsrf()}
+        });
+      })).then(function(){ loadMembers(); });
+    };
+
+    /* ════════════════════════════════════════════
+       Add Member 모달
+    ════════════════════════════════════════════ */
+    var filteredHosts = [];
+
+    window.openAddMember = function(){
+      document.getElementById('memberSearch').value = '';
+      document.getElementById('addMemberError').style.display = 'none';
+      document.getElementById('memberSelectCount').textContent = '';
+
+      var p1 = allHosts.length
+        ? Promise.resolve(allHosts)
+        : fetch('/api/host-groups-hosts').then(function(r){return r.json();});
+
+      p1.then(function(hosts){
+        allHosts = hosts;
+        var memberHostnames = currentMembers.map(function(m){ return m.hostname; });
+        filteredHosts = hosts.filter(function(h){ return !memberHostnames.includes(h.hostname); });
+        renderMemberHostList(filteredHosts);
+        document.getElementById('addMemberModal').style.display = 'flex';
+      }).catch(function(){ alert('Failed to load hosts.'); });
+    };
+
+    window.filterMemberList = function(kw){
+      kw = kw.toLowerCase();
+      var memberHostnames = currentMembers.map(function(m){ return m.hostname; });
+      filteredHosts = allHosts.filter(function(h){
+        return !memberHostnames.includes(h.hostname) &&
+          (h.hostname.toLowerCase().includes(kw) || (h.ipAddress||'').toLowerCase().includes(kw));
+      });
+      renderMemberHostList(filteredHosts);
+    };
+
+    function renderMemberHostList(list){
+      var el = document.getElementById('memberHostList');
+      if(!list.length){
+        el.innerHTML = '<div style="text-align:center;padding:20px 0;color:var(--text-muted);font-size:13px;">No hosts available.</div>';
+        return;
+      }
+      el.innerHTML = list.map(function(h){
+        return '<label style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--border);border-radius:4px;cursor:pointer;background:var(--raised);">'+
+          '<input type="checkbox" class="host-add-check" data-id="'+h.id+'" onchange="updateAddMemberCount()" style="width:14px;height:14px;accent-color:var(--accent);">'+
+          '<span class="td-mono" style="font-weight:600;color:var(--text);font-size:13px;">'+esc(h.hostname)+'</span>'+
+          '<span style="font-size:12px;color:var(--text-muted);">'+esc(h.ipAddress||'')+'</span>'+
+          '<span style="margin-left:auto;">'+(h.agentActive
+            ?'<span class="badge badge-ok" style="font-size:11px;">Active</span>'
+            :'<span class="badge badge-danger" style="font-size:11px;">Inactive</span>')+
+          '</span>'+
+        '</label>';
+      }).join('');
+      updateAddMemberCount();
+    }
+
+    window.updateAddMemberCount = function(){
+      var c = document.querySelectorAll('.host-add-check:checked').length;
+      document.getElementById('memberSelectCount').textContent = c ? c+' selected' : '';
+    };
+
+    window.submitAddMembers = function(){
+      var ids = [];
+      document.querySelectorAll('.host-add-check:checked').forEach(function(c){ ids.push(parseInt(c.dataset.id)); });
+      var errEl = document.getElementById('addMemberError');
+      errEl.style.display = 'none';
+      if(!ids.length){ errEl.textContent='Please select at least one host.'; errEl.style.display='block'; return; }
+
+      fetch('/api/host-groups/'+currentGroupId+'/members', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','X-CSRF-TOKEN':getCsrf()},
+        body: JSON.stringify({hostIds: ids})
+      }).then(function(r){return r.json();}).then(function(d){
+        if(d.success){
+          closeModal('addMemberModal');
+          allHosts = [];
+          loadMembers();
+        } else {
+          errEl.textContent = d.error || 'Failed.';
+          errEl.style.display = 'block';
+        }
+      }).catch(function(){ errEl.textContent='Request failed.'; errEl.style.display='block'; });
+    };
+
+    function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+    /* ── 초기 라우팅 ── */
+    handleRoute();
+
+  })();
+  </script>
+
+</div>
+</body>
+</html>

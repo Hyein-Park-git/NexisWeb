@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="content">
+
+  <div id="saveMsg" style="display:none;max-width:560px;margin-bottom:14px;padding:10px 14px;border-radius:6px;font-size:12.5px;"></div>
+
+  <!-- ── Nexis 서버 연결 ── -->
+  <div class="card" style="max-width:560px;margin-bottom:16px;">
+    <div class="card-header" style="display:flex;align-items:center;gap:8px;">
+      <span class="card-title">Nexis Server Connection</span>
+      <span class="status-dot" id="serverDotCfg"></span>
+      <span id="serverStatusLabel" style="font-size:11.5px;color:var(--text-muted);">Checking…</span>
+    </div>
+    <div style="padding:20px 24px;display:flex;flex-direction:column;gap:14px;">
+      <div class="form-group" style="margin:0;">
+        <label class="form-label">Server Name</label>
+        <input type="text" class="form-control" id="serverName" placeholder="e.g. Nexis Server 1">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 140px;gap:10px;">
+        <div class="form-group" style="margin:0;">
+          <label class="form-label">Host</label>
+          <input type="text" class="form-control" id="serverHost" placeholder="localhost">
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label class="form-label">Port</label>
+          <input type="text" class="form-control" id="serverPort" placeholder="9000" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button class="btn btn-secondary btn-sm" onclick="testServer()">Test Connection</button>
+        <button class="btn btn-primary btn-sm" onclick="saveServerConfig()">Save</button>
+        <span id="serverTestMsg" style="font-size:12px;display:none;"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── DB 연결 ── -->
+  <div class="card" style="max-width:560px;">
+    <div class="card-header" style="display:flex;align-items:center;gap:8px;">
+      <span class="card-title">Database Connection</span>
+      <span class="status-dot" id="dbDotCfg"></span>
+      <span id="dbStatusLabel" style="font-size:11.5px;color:var(--text-muted);">Checking…</span>
+    </div>
+    <div style="padding:20px 24px;display:flex;flex-direction:column;gap:14px;">
+      <div class="form-group" style="margin:0;">
+        <label class="form-label">Database Type</label>
+        <select class="form-control" id="dbType" onchange="onDbTypeChange()">
+          <option value="MySQL">MySQL</option>
+          <option value="MariaDB">MariaDB</option>
+          <option value="PostgreSQL">PostgreSQL</option>
+        </select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 140px;gap:10px;">
+        <div class="form-group" style="margin:0;">
+          <label class="form-label">Host</label>
+          <input type="text" class="form-control" id="dbHost" placeholder="localhost">
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label class="form-label">Port</label>
+          <input type="text" class="form-control" id="dbPort" placeholder="3306" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+        </div>
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label class="form-label">Database Name</label>
+        <input type="text" class="form-control" id="dbName" placeholder="nexis">
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label class="form-label">User</label>
+        <input type="text" class="form-control" id="dbUser">
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label class="form-label">Password</label>
+        <input type="password" class="form-control" id="dbPassword" placeholder="(unchanged if empty)">
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button class="btn btn-secondary btn-sm" onclick="testDb()">Test Connection</button>
+        <button class="btn btn-primary btn-sm" onclick="saveDbConfig()">Save</button>
+        <span id="dbTestMsg" style="font-size:12px;display:none;"></span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  const DEFAULT_PORTS = { MySQL:'3306', MariaDB:'3306', PostgreSQL:'5432' };
+
+  function onDbTypeChange() {
+    const p = document.getElementById('dbPort');
+    if (!p.dataset.edited)
+      p.value = DEFAULT_PORTS[document.getElementById('dbType').value] || '3306';
+  }
+  document.getElementById('dbPort').addEventListener('input', function(){ this.dataset.edited='1'; });
+
+  // ── 현재 설정 로드 ──────────────────────────────────────────
+  (function loadConfig() {
+    fetch('/api/server-info')
+      .then(r => r.json())
+      .then(d => {
+        document.getElementById('serverName').value = (d.serverName && d.serverName !== '-') ? d.serverName : '';
+        document.getElementById('serverHost').value = (d.serverHost && d.serverHost !== '-') ? d.serverHost : '';
+        document.getElementById('serverPort').value = (d.serverPort && d.serverPort !== '-') ? d.serverPort : '';
+        // 저장된 설정으로 실제 서버 연결 테스트
+        setDot('serverDotCfg', 'serverStatusLabel', null, 'Checking…');
+        fetch('/api/settings/test-server-current')
+          .then(r => r.json())
+          .then(s => setDot('serverDotCfg', 'serverStatusLabel', s.success, s.success ? 'Connected' : 'Unreachable'))
+          .catch(() => setDot('serverDotCfg', 'serverStatusLabel', false, 'Unreachable'));
+      }).catch(() => setDot('serverDotCfg', 'serverStatusLabel', false, 'Error'));
+
+    fetch('/api/config-info')
+      .then(r => r.json())
+      .then(d => {
+        if (d.dbType && d.dbType !== '-') document.getElementById('dbType').value = d.dbType;
+        document.getElementById('dbHost').value = (d.dbHost && d.dbHost !== '-') ? d.dbHost : '';
+        document.getElementById('dbPort').value = (d.dbPort && d.dbPort !== '-') ? d.dbPort : '';
+        document.getElementById('dbName').value = (d.dbName && d.dbName !== '-') ? d.dbName : '';
+        document.getElementById('dbUser').value = d.dbUser || '';
+
+        // 저장된 설정으로 실제 DB 연결 테스트 (비밀번호 포함)
+        setDot('dbDotCfg', 'dbStatusLabel', null, 'Checking…');
+        fetch('/api/settings/test-db-current')
+          .then(r => r.json())
+          .then(s => setDot('dbDotCfg', 'dbStatusLabel', s.success, s.success ? 'Connected' : 'Unreachable'))
+          .catch(() => setDot('dbDotCfg', 'dbStatusLabel', false, 'Unreachable'));
+      }).catch(() => setDot('dbDotCfg', 'dbStatusLabel', false, 'Unknown'));
+  })();
+
+  function setDot(dotId, labelId, ok, text) {
+    const dot = document.getElementById(dotId);
+    dot.classList.remove('online','offline');
+    if (ok === true)  dot.classList.add('online');
+    if (ok === false) dot.classList.add('offline');
+    const lbl = document.getElementById(labelId);
+    lbl.textContent = text;
+    lbl.style.color = ok === true ? 'var(--ok)' : ok === false ? 'var(--danger)' : 'var(--text-muted)';
+  }
+
+  // ── 서버 테스트 ─────────────────────────────────────────────
+  function testServer() {
+    const host = document.getElementById('serverHost').value.trim();
+    const port = document.getElementById('serverPort').value.trim();
+    const msg  = document.getElementById('serverTestMsg');
+    if (!host || !port) { showInline(msg, 'Host and port required.', false); return; }
+    showInline(msg, 'Connecting…', null);
+    fetch('/api/install/test-server?host=' + encodeURIComponent(host) + '&port=' + port)
+      .then(r => r.json())
+      .then(d => showInline(msg, d.success ? 'Connected' : 'Unreachable', d.success))
+      .catch(() => showInline(msg, 'Failed', false));
+  }
+
+  // ── 서버 설정 저장 ──────────────────────────────────────────
+  function saveServerConfig() {
+    fetch('/api/settings/server', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'X-CSRF-TOKEN': getCsrf() },
+      body: JSON.stringify({
+        serverName: document.getElementById('serverName').value.trim(),
+        serverHost: document.getElementById('serverHost').value.trim(),
+        serverPort: parseInt(document.getElementById('serverPort').value) || 9000
+      })
+    })
+    .then(r => r.json())
+    .then(d => showSaveMsg(d.success, d.error))
+    .catch(() => showSaveMsg(false, 'Request failed.'));
+  }
+
+  // ── DB 테스트 ───────────────────────────────────────────────
+  function testDb() {
+    const msg = document.getElementById('dbTestMsg');
+    showInline(msg, 'Connecting…', null);
+    fetch('/api/install/test-db', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json' },
+      body: JSON.stringify({
+        dbType:     document.getElementById('dbType').value,
+        dbHost:     document.getElementById('dbHost').value.trim(),
+        dbPort:     parseInt(document.getElementById('dbPort').value) || 3306,
+        dbName:     document.getElementById('dbName').value.trim(),
+        dbUser:     document.getElementById('dbUser').value.trim(),
+        dbPassword: document.getElementById('dbPassword').value
+      })
+    })
+    .then(r => r.json())
+    .then(d => showInline(msg, d.success ? 'Connected' : d.message, d.success))
+    .catch(() => showInline(msg, 'Failed', false));
+  }
+
+  // ── DB 설정 저장 ────────────────────────────────────────────
+  function saveDbConfig() {
+    fetch('/api/settings/db', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'X-CSRF-TOKEN': getCsrf() },
+      body: JSON.stringify({
+        dbType:     document.getElementById('dbType').value,
+        dbHost:     document.getElementById('dbHost').value.trim(),
+        dbPort:     parseInt(document.getElementById('dbPort').value) || 3306,
+        dbName:     document.getElementById('dbName').value.trim(),
+        dbUser:     document.getElementById('dbUser').value.trim(),
+        dbPassword: document.getElementById('dbPassword').value
+      })
+    })
+    .then(r => r.json())
+    .then(d => showSaveMsg(d.success, d.error))
+    .catch(() => showSaveMsg(false, 'Request failed.'));
+  }
+
+  function showInline(el, text, ok) {
+    el.textContent = text;
+    el.style.color = ok === true ? 'var(--ok)' : ok === false ? 'var(--danger)' : 'var(--text-muted)';
+    el.style.display = 'inline';
+  }
+
+  function showSaveMsg(ok, err) {
+    const el = document.getElementById('saveMsg');
+    el.textContent  = ok ? 'Settings saved.' : err || 'Failed.';
+    el.style.background = ok ? 'rgba(46,192,138,.1)' : 'rgba(224,82,82,.1)';
+    el.style.border     = ok ? '1px solid rgba(46,192,138,.35)' : '1px solid rgba(224,82,82,.4)';
+    el.style.color      = ok ? 'var(--ok)' : 'var(--danger)';
+    el.style.display    = 'block';
+    setTimeout(() => el.style.display = 'none', 4000);
+  }
+
+  // ── 실시간 상태 폴링 (10초마다) ──────────────────────────────
+  function pollStatus() {
+    fetch('/api/settings/test-server-current')
+      .then(r => r.json())
+      .then(s => setDot('serverDotCfg', 'serverStatusLabel', s.success, s.success ? 'Connected' : 'Unreachable'))
+      .catch(() => setDot('serverDotCfg', 'serverStatusLabel', false, 'Unreachable'));
+
+    fetch('/api/settings/test-db-current')
+      .then(r => r.json())
+      .then(s => setDot('dbDotCfg', 'dbStatusLabel', s.success, s.success ? 'Connected' : 'Unreachable'))
+      .catch(() => setDot('dbDotCfg', 'dbStatusLabel', false, 'Unreachable'));
+  }
+
+  setInterval(pollStatus, 10000);
+
+  </script>
+
+</div>
+</body>
+</html>

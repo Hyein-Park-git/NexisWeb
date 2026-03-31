@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="content">
+
+  <div class="card" style="max-width:560px;">
+    <div class="card-header">
+      <span class="card-title" data-i18n="settings.title">User Settings</span>
+    </div>
+    <div style="padding:24px;display:flex;flex-direction:column;gap:24px;">
+
+      <!-- 언어 설정 -->
+      <div>
+        <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.7px;color:var(--text-muted);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border);" data-i18n="settings.section.language">Language</div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label" data-i18n="settings.language.label">Display Language</label>
+          <select class="form-control" id="langSelect" style="max-width:240px;" onchange="applyLang(this.value)">
+            <option value="en">English</option>
+            <option value="ko">한국어</option>
+          </select>
+          <div style="font-size:11.5px;color:var(--text-muted);margin-top:6px;" data-i18n="settings.language.desc">
+            Changes the interface language. Takes effect immediately.
+          </div>
+        </div>
+      </div>
+
+      <!-- 테마 설정 -->
+      <div>
+        <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.7px;color:var(--text-muted);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border);" data-i18n="settings.section.appearance">Appearance</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:var(--raised);border:1px solid var(--border);border-radius:8px;">
+          <div>
+            <div style="font-size:13px;font-weight:500;color:var(--text);" data-i18n="settings.theme.label">Theme</div>
+            <div style="font-size:11.5px;color:var(--text-muted);margin-top:2px;" data-i18n="settings.theme.desc">Switch between light and dark mode</div>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="toggleTheme()" data-i18n="settings.theme.btn">Toggle Theme</button>
+        </div>
+      </div>
+
+      <!-- 저장 버튼 -->
+      <div style="display:flex;align-items:center;gap:12px;">
+        <button class="btn btn-primary" onclick="saveSettings()" data-i18n="settings.save">Save Settings</button>
+        <span id="saveMsg" style="font-size:12.5px;display:none;"></span>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+  const I18N = {
+    en: {
+      'settings.title':             'User Settings',
+      'settings.section.language':  'LANGUAGE',
+      'settings.language.label':    'Display Language',
+      'settings.language.desc':     'Changes the interface language. Takes effect immediately.',
+      'settings.section.appearance':'APPEARANCE',
+      'settings.theme.label':       'Theme',
+      'settings.theme.desc':        'Switch between light and dark mode',
+      'settings.theme.btn':         'Toggle Theme',
+      'settings.save':              'Save Settings',
+      'settings.saved':             '✓ Settings saved.',
+    },
+    ko: {
+      'settings.title':             '사용자 설정',
+      'settings.section.language':  '언어',
+      'settings.language.label':    '표시 언어',
+      'settings.language.desc':     '인터페이스 언어를 변경합니다. 즉시 적용됩니다.',
+      'settings.section.appearance':'화면',
+      'settings.theme.label':       '테마',
+      'settings.theme.desc':        '라이트/다크 모드를 전환합니다',
+      'settings.theme.btn':         '테마 전환',
+      'settings.save':              '설정 저장',
+      'settings.saved':             '✓ 설정이 저장되었습니다.',
+    }
+  };
+
+  function applyLang(lang) {
+    // main.html의 applyI18n으로 사이드바/페이지제목/카드타이틀 적용
+    if (typeof applyI18n === 'function') {
+      applyI18n(lang);
+    }
+    // 이 페이지의 data-i18n 요소 적용
+    var dict = I18N[lang] || I18N['en'];
+    document.querySelectorAll('[data-i18n]').forEach(function(el) {
+      var key = el.getAttribute('data-i18n');
+      if (dict[key]) el.textContent = dict[key];
+    });
+    localStorage.setItem('nexis-lang', lang);
+  }
+
+  function saveSettings() {
+    var lang = document.getElementById('langSelect').value;
+    applyLang(lang);
+    var msg  = document.getElementById('saveMsg');
+    var dict = I18N[lang] || I18N['en'];
+    msg.textContent    = dict['settings.saved'];
+    msg.style.color    = 'var(--ok)';
+    msg.style.display  = 'inline';
+    setTimeout(function(){ msg.style.display = 'none'; }, 3000);
+  }
+
+  (function(){
+    var lang = localStorage.getItem('nexis-lang') || 'en';
+    document.getElementById('langSelect').value = lang;
+    applyLang(lang);
+  })();
+  </script>
+
+</div>
+</body>
+</html>

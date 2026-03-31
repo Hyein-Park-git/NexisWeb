@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="content">
+
+  <input type="hidden" id="templateIdData" th:value="${template != null ? template.id : 0}">
+  <input type="hidden" id="canWriteData"   th:value="${canWrite}">
+
+  <!-- ══ 메인 뷰 ══ -->
+  <div id="mainView">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <a href="/configuration/templates" class="btn btn-secondary btn-sm">← Templates</a>
+        <div>
+          <span style="font-size:16px;font-weight:600;color:var(--text);" th:text="${template != null ? template.name : '—'}">—</span>
+          <span class="badge badge-ok" style="margin-left:8px;" th:text="${template != null ? (template.osType ?: 'Any') : 'Any'}">Any</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-bar">
+      <button class="tab-btn tab-btn--active" id="tab-items"    onclick="navigateTo('items')">Items</button>
+      <button class="tab-btn"                 id="tab-triggers" onclick="navigateTo('triggers')">Triggers</button>
+    </div>
+
+    <!-- ══ Items 탭 ══ -->
+    <div id="pane-items">
+      <div th:if="${canWrite}" class="toolbar">
+        <div class="toolbar-left"></div>
+        <div class="toolbar-right"><button class="btn btn-primary" onclick="navigateTo('items/new')">+ Create item</button></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Items</span><span class="card-count" id="itemCount"></span></div>
+        <table class="data-table">
+          <thead><tr>
+            <th th:if="${canWrite}" style="width:36px;"><input type="checkbox" id="checkAllItems" onchange="toggleAllItems(this)"></th>
+            <th th:unless="${canWrite}" style="width:36px;"></th>
+            <th>Name</th><th>Key</th><th>Type</th><th>Units</th><th>Interval</th><th>Status</th>
+            <th th:if="${canWrite}" style="width:80px;"></th>
+          </tr></thead>
+          <tbody id="itemsTableBody"><tr><td colspan="8" class="table-empty">Loading...</td></tr></tbody>
+        </table>
+      </div>
+      <div th:if="${canWrite}" id="itemBulkBar" style="position:sticky;bottom:0;background:var(--surface);border-top:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;gap:8px;border-radius:0 0 8px 8px;">
+        <button class="btn btn-secondary btn-sm" id="itemBulkEnable"  onclick="bulkItemAction('enable')"  disabled>Enable</button>
+        <button class="btn btn-secondary btn-sm" id="itemBulkDisable" onclick="bulkItemAction('disable')" disabled>Disable</button>
+        <button class="btn btn-danger btn-sm"    id="itemBulkDelete"  onclick="bulkItemAction('delete')"  disabled>Delete</button>
+        <span id="itemBulkCount" style="font-size:13px;color:var(--text-muted);margin-left:8px;"></span>
+      </div>
+    </div>
+
+    <!-- ══ Triggers 탭 ══ -->
+    <div id="pane-triggers" style="display:none;">
+      <div th:if="${canWrite}" class="toolbar">
+        <div class="toolbar-left"></div>
+        <div class="toolbar-right"><button class="btn btn-primary" onclick="navigateTo('triggers/new')">+ Create trigger</button></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Triggers</span><span class="card-count" id="triggerCount"></span></div>
+        <table class="data-table">
+          <thead><tr>
+            <th th:if="${canWrite}" style="width:36px;"><input type="checkbox" id="checkAllTriggers" onchange="toggleAllTriggers(this)"></th>
+            <th th:unless="${canWrite}" style="width:36px;"></th>
+            <th>Name</th><th>Item</th><th>Expression</th><th>Severity</th><th>Status</th>
+            <th th:if="${canWrite}" style="width:80px;"></th>
+          </tr></thead>
+          <tbody id="triggersTableBody"><tr><td colspan="7" class="table-empty">Loading...</td></tr></tbody>
+        </table>
+      </div>
+      <div th:if="${canWrite}" id="triggerBulkBar" style="position:sticky;bottom:0;background:var(--surface);border-top:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;gap:8px;border-radius:0 0 8px 8px;">
+        <button class="btn btn-secondary btn-sm" id="triggerBulkEnable"  onclick="bulkTriggerAction('enable')"  disabled>Enable</button>
+        <button class="btn btn-secondary btn-sm" id="triggerBulkDisable" onclick="bulkTriggerAction('disable')" disabled>Disable</button>
+        <button class="btn btn-danger btn-sm"    id="triggerBulkDelete"  onclick="bulkTriggerAction('delete')"  disabled>Delete</button>
+        <span id="triggerBulkCount" style="font-size:13px;color:var(--text-muted);margin-left:8px;"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ 아이템 폼 뷰 ══ -->
+  <div id="itemFormView" style="display:none;">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+      <button class="btn btn-secondary btn-sm" onclick="navigateTo('items')">← Back</button>
+      <span id="itemFormTitle" style="font-size:15px;font-weight:600;color:var(--text);">New item</span>
+    </div>
+    <div class="card">
+      <div class="card-header" style="justify-content:space-between;">
+        <span class="card-title">Item configuration</span>
+        <button class="btn btn-danger btn-sm" id="itemDeleteBtn" style="display:none;" onclick="deleteCurrentItem()">Delete item</button>
+      </div>
+      <div style="padding:24px;max-width:560px;">
+        <div class="form-group"><label class="form-label">Name <span style="color:var(--danger);">*</span></label><input type="text" class="form-control" id="itemName" placeholder="e.g. CPU Usage"></div>
+        <div class="form-group"><label class="form-label">Metric <span style="color:var(--danger);">*</span></label><select class="form-control" id="itemMetric" onchange="onMetricChange()" style="max-width:300px;"><option value="cpu">CPU</option><option value="memory">Memory</option></select></div>
+        <div class="form-group"><label class="form-label">Type <span style="color:var(--danger);">*</span></label><select class="form-control" id="itemValueType" onchange="onValueTypeChange()" style="max-width:300px;"></select></div>
+        <div class="form-group"><label class="form-label">Units</label><select class="form-control" id="itemUnitDisplay" style="max-width:200px;"></select><div style="font-size:11px;color:var(--text-muted);margin-top:3px;" id="unitHint"></div></div>
+        <div class="form-group"><label class="form-label">Key</label><input type="text" class="form-control" id="itemKey" placeholder="e.g. cpu.usage" style="max-width:300px;"><div style="font-size:11px;color:var(--text-muted);margin-top:3px;">Supported: cpu.usage, cpu.available, memory.usage, memory.available, memory.total, memory.free</div></div>
+
+        <!-- ══ Interval 필드 ══ -->
+        <div class="form-group">
+          <label class="form-label">Update Interval <span style="color:var(--danger);">*</span></label>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="text" class="form-control" id="itemInterval" value="60" style="max-width:120px;" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+            <span style="font-size:13px;color:var(--text-muted);">seconds</span>
+          </div>
+          <!-- 이 값이 HostSyncScheduler Inactive 판단 기준에 사용됨을 안내 -->
+          <div style="font-size:11px;color:var(--text-muted);margin-top:3px;">
+            Inactive detection: interval × 2 × 1.5. Agent send interval should be ≤ this value.
+          </div>
+        </div>
+
+        <div class="form-group"><label class="form-label">Status</label><select class="form-control" id="itemStatus" style="max-width:200px;"><option value="true">Enabled</option><option value="false">Disabled</option></select></div>
+        <div class="form-group"><label class="form-label">Description</label><textarea class="form-control" id="itemDesc" rows="3" style="height:auto;resize:vertical;" placeholder="Optional"></textarea></div>
+        <div id="itemFormError" class="modal-error" style="display:none;border-radius:4px;padding:8px 12px;margin-bottom:12px;"></div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-primary" id="itemSubmitBtn" onclick="submitItem()">Add</button>
+          <button class="btn btn-secondary" onclick="navigateTo('items')">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ 트리거 폼 뷰 ══ -->
+  <div id="triggerFormView" style="display:none;">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+      <button class="btn btn-secondary btn-sm" onclick="navigateTo('triggers')">← Back</button>
+      <span id="triggerFormTitle" style="font-size:15px;font-weight:600;color:var(--text);">New trigger</span>
+    </div>
+    <div class="card">
+      <div class="card-header" style="justify-content:space-between;">
+        <span class="card-title">Trigger configuration</span>
+        <button class="btn btn-danger btn-sm" id="triggerDeleteBtn" style="display:none;" onclick="deleteCurrentTrigger()">Delete trigger</button>
+      </div>
+      <div style="padding:24px;max-width:600px;">
+        <div class="form-group"><label class="form-label">Name <span style="color:var(--danger);">*</span></label><input type="text" class="form-control" id="triggerName" placeholder="e.g. CPU too high"></div>
+        <div class="form-group"><label class="form-label">Item <span style="color:var(--danger);">*</span></label><select class="form-control" id="triggerItemId" onchange="updateTriggerUnitHint()" style="max-width:400px;"></select></div>
+        <div class="form-group">
+          <label class="form-label">Expression <span style="color:var(--danger);">*</span></label>
+          <div id="exprBuilderRows" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px;"></div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="addExprRow()">+ Add condition</button>
+            <span id="triggerUnitHint" style="font-size:12px;color:var(--text-muted);"></span>
+          </div>
+          <input type="text" class="form-control td-mono" id="triggerExpression" placeholder="e.g. last() > 80 for 5m" style="font-size:13px;">
+          <div style="font-size:11px;color:var(--text-muted);margin-top:3px;">for Xm = all values in last X minutes must match. Leave empty to fire immediately.</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Severity</label>
+          <input type="hidden" id="triggerSeverity" value="Warning">
+          <div style="display:flex;gap:0;border-radius:6px;overflow:hidden;border:1px solid var(--border);width:fit-content;">
+            <button type="button" class="sev-btn" data-sev="Not classified" style="padding:7px 13px;font-size:12px;font-weight:600;border:none;cursor:pointer;background:#888;color:#fff;border-right:1px solid rgba(255,255,255,.15);" onclick="selectSeverity('Not classified')">Not classified</button>
+            <button type="button" class="sev-btn" data-sev="Information"    style="padding:7px 13px;font-size:12px;font-weight:600;border:none;cursor:pointer;background:#2e7d9e;color:#fff;border-right:1px solid rgba(255,255,255,.15);" onclick="selectSeverity('Information')">Information</button>
+            <button type="button" class="sev-btn" data-sev="Warning"        style="padding:7px 13px;font-size:12px;font-weight:600;border:none;cursor:pointer;background:#d4a800;color:#fff;border-right:1px solid rgba(255,255,255,.15);" onclick="selectSeverity('Warning')">Warning</button>
+            <button type="button" class="sev-btn" data-sev="Average"        style="padding:7px 13px;font-size:12px;font-weight:600;border:none;cursor:pointer;background:#e07a3d;color:#fff;border-right:1px solid rgba(255,255,255,.15);" onclick="selectSeverity('Average')">Average</button>
+            <button type="button" class="sev-btn" data-sev="High"           style="padding:7px 13px;font-size:12px;font-weight:600;border:none;cursor:pointer;background:#e53935;color:#fff;border-right:1px solid rgba(255,255,255,.15);" onclick="selectSeverity('High')">High</button>
+            <button type="button" class="sev-btn" data-sev="Disaster"       style="padding:7px 13px;font-size:12px;font-weight:600;border:none;cursor:pointer;background:#b71c1c;color:#fff;" onclick="selectSeverity('Disaster')">Disaster</button>
+          </div>
+        </div>
+        <div class="form-group"><label class="form-label">Status</label><select class="form-control" id="triggerEnabled" style="max-width:200px;"><option value="true">Enabled</option><option value="false">Disabled</option></select></div>
+        <div class="form-group"><label class="form-label">Description</label><input type="text" class="form-control" id="triggerDesc" placeholder="Optional"></div>
+        <div id="triggerFormError" class="modal-error" style="display:none;border-radius:4px;padding:8px 12px;margin-bottom:12px;"></div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-primary" id="triggerSubmitBtn" onclick="submitTrigger()">Add</button>
+          <button class="btn btn-secondary" onclick="navigateTo('triggers')">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  (function () {
+    var TEMPLATE_ID = parseInt(document.getElementById('templateIdData').value) || 0;
+    var CAN_WRITE   = document.getElementById('canWriteData').value === 'true';
+    var items = [], exprRowCount = 0;
+
+    var VALUE_TYPES = {
+      cpu:    [{key:'usage',label:'CPU Usage'},{key:'available',label:'CPU Available (idle)'}],
+      memory: [{key:'usage',label:'Memory Usage'},{key:'available',label:'Memory Available'},{key:'total',label:'Memory Total'},{key:'free',label:'Memory Free'}]
+    };
+    var UNIT_MAP = {
+      'cpu.usage':{fixed:'%'},'cpu.available':{fixed:'%'},'memory.usage':{fixed:'%'},
+      'memory.available':{opts:['GB','MB','KB','Bytes']},'memory.total':{opts:['GB','MB','KB','Bytes']},'memory.free':{opts:['GB','MB','KB','Bytes']}
+    };
+    var SEV_STYLE = {
+      'Disaster':'background:#b71c1c;color:#fff;','High':'background:#e53935;color:#fff;',
+      'Average':'background:#e07a3d;color:#fff;','Warning':'background:#d4a800;color:#fff;',
+      'Information':'background:#2e7d9e;color:#fff;','Not classified':'background:#888;color:#fff;'
+    };
+
+    function parseHash(){ return (location.hash||'#items').replace('#',''); }
+    window.navigateTo = function(path){
+      if(!CAN_WRITE && (path==='items/new' || path==='triggers/new')) return;
+      location.hash = path;
+    };
+
+    function handleRoute(){
+      var hash = parseHash();
+      if(/^items\//.test(hash)){
+        var part = hash.replace('items/','');
+        showView('itemForm'); setTabActive('items');
+        if(part==='new'){ if(CAN_WRITE) prepareNewItemForm(); else navigateTo('items'); }
+        else{ var id=parseInt(part); if(id) prepareEditItemForm(id); }
+        return;
+      }
+      if(/^triggers\//.test(hash)){
+        var part = hash.replace('triggers/','');
+        showView('triggerForm'); setTabActive('triggers');
+        if(part==='new'){ if(CAN_WRITE) prepareNewTriggerForm(); else navigateTo('triggers'); }
+        else{ var id=parseInt(part); if(id) prepareEditTriggerForm(id); }
+        return;
+      }
+      var tab = hash || 'items';
+      showView('main'); setTabActive(tab);
+      ['items','triggers'].forEach(function(t){
+        document.getElementById('pane-'+t).style.display = t===tab ? '' : 'none';
+      });
+      if(tab==='items')    loadItems();
+      if(tab==='triggers') loadTriggers();
+    }
+    window.addEventListener('hashchange', handleRoute);
+
+    function showView(view){
+      document.getElementById('mainView').style.display        = view==='main'        ? '' : 'none';
+      document.getElementById('itemFormView').style.display    = view==='itemForm'    ? '' : 'none';
+      document.getElementById('triggerFormView').style.display = view==='triggerForm' ? '' : 'none';
+    }
+    function setTabActive(tab){
+      ['items','triggers'].forEach(function(t){
+        var btn = document.getElementById('tab-'+t);
+        if(btn) btn.classList.toggle('tab-btn--active', t===tab);
+      });
+    }
+
+    /* ══ Items ══ */
+    function loadItems(){
+      if(!TEMPLATE_ID) return;
+      fetch('/api/items/template/'+TEMPLATE_ID)
+        .then(function(r){ return r.json(); })
+        .then(function(data){ items=data; renderItemsTable(data); })
+        .catch(function(){ document.getElementById('itemsTableBody').innerHTML='<tr><td colspan="8" class="table-empty">Failed to load.</td></tr>'; });
+    }
+    function renderItemsTable(data){
+      document.getElementById('itemCount').textContent = data.length ? data.length+' items' : '';
+      var tbody = document.getElementById('itemsTableBody');
+      if(!data.length){ tbody.innerHTML='<tr><td colspan="8" class="table-empty">No items yet.</td></tr>'; return; }
+      tbody.innerHTML = data.map(function(item){
+        return '<tr>'+
+          (CAN_WRITE ? '<td style="text-align:center;"><input type="checkbox" class="item-check" data-id="'+item.id+'" onchange="onItemCheckChange()"></td>' : '<td></td>')+
+          '<td><a href="#items/'+item.id+'" style="color:var(--accent);font-weight:600;text-decoration:none;">'+esc(item.name)+'</a></td>'+
+          '<td class="td-mono" style="font-size:11.5px;color:var(--text-muted);">'+esc(item.itemKey)+'</td>'+
+          '<td>'+typeLabel(item.metric, item.valueType)+'</td>'+
+          '<td class="td-mono">'+esc(item.unitDisplay||'—')+'</td>'+
+          '<td class="td-mono" style="font-size:12px;">'+(item.interval ? item.interval+'s' : '60s')+'</td>'+
+          '<td><span class="badge '+(item.enabled?'badge-ok':'badge-danger')+'">'+(item.enabled?'Enabled':'Disabled')+'</span></td>'+
+          (CAN_WRITE ? '<td><a href="#items/'+item.id+'" class="btn btn-secondary btn-sm">Edit</a></td>' : '')+
+        '</tr>';
+      }).join('');
+    }
+    window.toggleAllItems = function(chk){
+      if(!CAN_WRITE) return;
+      document.querySelectorAll('.item-check').forEach(function(c){ c.checked=chk.checked; });
+      onItemCheckChange();
+    };
+    window.onItemCheckChange = function(){
+      if(!CAN_WRITE) return;
+      var c = document.querySelectorAll('.item-check:checked').length;
+      document.getElementById('itemBulkCount').textContent = c ? c+' selected' : '';
+      ['itemBulkEnable','itemBulkDisable','itemBulkDelete'].forEach(function(id){
+        var el = document.getElementById(id); if(el) el.disabled = !c;
+      });
+    };
+    window.bulkItemAction = function(action){
+      if(!CAN_WRITE) return;
+      var ids = []; document.querySelectorAll('.item-check:checked').forEach(function(c){ ids.push(parseInt(c.dataset.id)); });
+      if(!ids.length) return;
+      if(action==='delete' && !confirm('Delete '+ids.length+' item(s)?')) return;
+      Promise.all(ids.map(function(id){
+        return action==='delete'
+          ? fetch('/api/items/'+id, {method:'DELETE', headers:{'X-CSRF-TOKEN':getCsrf()}})
+          : fetch('/api/items/'+id, {method:'PUT', headers:{'Content-Type':'application/json','X-CSRF-TOKEN':getCsrf()}, body:JSON.stringify({enabled:action==='enable'})});
+      })).then(function(){ navigateTo('items'); });
+    };
+
+    function prepareNewItemForm(){
+      document.getElementById('itemFormTitle').textContent = 'New item';
+      document.getElementById('itemSubmitBtn').textContent = 'Add';
+      document.getElementById('itemSubmitBtn').style.display = '';
+      document.getElementById('itemDeleteBtn').style.display = 'none';
+      document.getElementById('itemFormError').style.display = 'none';
+      document.getElementById('itemName').value = '';
+      document.getElementById('itemDesc').value = '';
+      document.getElementById('itemStatus').value = 'true';
+      document.getElementById('itemInterval').value = '60'; // 기본값 60초
+      document.getElementById('itemMetric').value = 'cpu';
+      onMetricChange();
+    }
+    function prepareEditItemForm(id){
+      var doFill = function(item){
+        document.getElementById('itemFormTitle').textContent = CAN_WRITE ? 'Edit item (#'+id+')' : 'Item (#'+id+')';
+        document.getElementById('itemSubmitBtn').style.display = CAN_WRITE ? '' : 'none';
+        document.getElementById('itemDeleteBtn').style.display = CAN_WRITE ? 'inline-flex' : 'none';
+        if(CAN_WRITE) document.getElementById('itemDeleteBtn').setAttribute('data-edit-id', id);
+        document.getElementById('itemFormError').style.display = 'none';
+        document.getElementById('itemName').value = item.name || '';
+        document.getElementById('itemDesc').value = item.description || '';
+        document.getElementById('itemStatus').value = String(item.enabled !== false);
+        document.getElementById('itemInterval').value = item.interval || 60; // interval 값 채우기
+        document.getElementById('itemMetric').value = item.metric || 'cpu'; onMetricChange();
+        document.getElementById('itemValueType').value = item.valueType || 'usage'; onValueTypeChange();
+        if(item.unitDisplay) document.getElementById('itemUnitDisplay').value = item.unitDisplay;
+        document.getElementById('itemKey').value = item.itemKey || '';
+        var readOnly = !CAN_WRITE;
+        ['itemName','itemKey','itemDesc'].forEach(function(fid){
+          var el = document.getElementById(fid);
+          if(el){ el.readOnly = readOnly; el.style.opacity = readOnly ? '.7' : ''; el.style.cursor = readOnly ? 'not-allowed' : ''; }
+        });
+        ['itemMetric','itemValueType','itemUnitDisplay','itemStatus','itemInterval'].forEach(function(fid){
+          var el = document.getElementById(fid);
+          if(el){ el.disabled = readOnly; el.style.opacity = readOnly ? '.7' : ''; }
+        });
+      };
+      var found = items.find(function(i){ return i.id===id; });
+      if(found){ doFill(found); }
+      else{ fetch('/api/items/'+id).then(function(r){ return r.json(); }).then(doFill).catch(function(){ navigateTo('items'); }); }
+    }
+    window.deleteCurrentItem = function(){
+      if(!CAN_WRITE) return;
+      var id = parseInt(document.getElementById('itemDeleteBtn').getAttribute('data-edit-id')||'0') || parseInt(parseHash().replace('items/',''));
+      if(!id || !confirm('Delete this item?')) return;
+      fetch('/api/items/'+id, {method:'DELETE', headers:{'X-CSRF-TOKEN':getCsrf()}}).then(function(){ navigateTo('items'); });
+    };
+    window.submitItem = function(){
+      if(!CAN_WRITE) return;
+      var name = document.getElementById('itemName').value.trim();
+      var errEl = document.getElementById('itemFormError'); errEl.style.display = 'none';
+      if(!name){ errEl.textContent='Name is required.'; errEl.style.display='block'; return; }
+
+      // interval 유효성 체크
+      var interval = parseInt(document.getElementById('itemInterval').value) || 60;
+      if(interval <= 0){ errEl.textContent='Interval must be greater than 0.'; errEl.style.display='block'; return; }
+
+      var hash = parseHash();
+      var editId = hash.startsWith('items/') && hash!=='items/new' ? parseInt(hash.replace('items/','')) : null;
+      var payload = {
+        name: name,
+        metric: document.getElementById('itemMetric').value,
+        valueType: document.getElementById('itemValueType').value,
+        unit: 'float',
+        unitDisplay: document.getElementById('itemUnitDisplay').value,
+        itemKey: document.getElementById('itemKey').value.trim(),
+        description: document.getElementById('itemDesc').value.trim(),
+        templateId: TEMPLATE_ID,
+        hostId: null,
+        enabled: document.getElementById('itemStatus').value === 'true',
+        interval: interval  // interval 전송
+      };
+      fetch(editId ? '/api/items/'+editId : '/api/items', {
+        method: editId ? 'PUT' : 'POST',
+        headers: {'Content-Type':'application/json','X-CSRF-TOKEN':getCsrf()},
+        body: JSON.stringify(payload)
+      }).then(function(r){ return r.json(); }).then(function(d){
+        if(d.success){ navigateTo('items'); }
+        else{ errEl.textContent=d.error||'Failed.'; errEl.style.display='block'; }
+      }).catch(function(){ errEl.textContent='Request failed.'; errEl.style.display='block'; });
+    };
+    window.onMetricChange = function(){
+      var m = document.getElementById('itemMetric').value;
+      document.getElementById('itemValueType').innerHTML = (VALUE_TYPES[m]||[]).map(function(v){
+        return '<option value="'+v.key+'">'+v.label+'</option>';
+      }).join('');
+      onValueTypeChange();
+    };
+    window.onValueTypeChange = function(){
+      var m = document.getElementById('itemMetric').value, vt = document.getElementById('itemValueType').value, k = m+'.'+vt;
+      document.getElementById('itemKey').value = k;
+      var uSel = document.getElementById('itemUnitDisplay'), hint = document.getElementById('unitHint'), info = UNIT_MAP[k];
+      if(info && info.fixed){ uSel.innerHTML='<option value="'+info.fixed+'">'+info.fixed+'</option>'; uSel.disabled=true; uSel.style.opacity='.6'; hint.textContent='Fixed to '+info.fixed+'.'; }
+      else if(info && info.opts){ uSel.innerHTML=info.opts.map(function(o){ return '<option value="'+o+'">'+o+'</option>'; }).join(''); uSel.disabled=false; uSel.style.opacity=''; hint.textContent='Raw bytes converted to selected unit.'; }
+      else{ uSel.innerHTML='<option value="%">%</option><option value="GB">GB</option><option value="MB">MB</option><option value="KB">KB</option><option value="Bytes">Bytes</option>'; uSel.disabled=false; uSel.style.opacity=''; hint.textContent=''; }
+    };
+
+    /* ══ Triggers ══ */
+    function loadTriggers(){
+      if(!TEMPLATE_ID) return;
+      fetch('/api/triggers/template/'+TEMPLATE_ID)
+        .then(function(r){ return r.json(); })
+        .then(function(data){ renderTriggersTable(data); })
+        .catch(function(){ document.getElementById('triggersTableBody').innerHTML='<tr><td colspan="7" class="table-empty">Failed to load.</td></tr>'; });
+    }
+    function renderTriggersTable(data){
+      document.getElementById('triggerCount').textContent = data.length ? data.length+' triggers' : '';
+      var tbody = document.getElementById('triggersTableBody');
+      if(!data.length){ tbody.innerHTML='<tr><td colspan="7" class="table-empty">No triggers yet.</td></tr>'; return; }
+      tbody.innerHTML = data.map(function(t){
+        var itemName='—'; for(var i=0;i<items.length;i++){ if(items[i].id===t.itemId){ itemName=items[i].name; break; } }
+        var expr = t.expression||(t.func+'() '+t.operator+' '+t.threshold+(t.duration>0?' for '+t.duration+'m':''));
+        return '<tr>'+
+          (CAN_WRITE ? '<td style="text-align:center;"><input type="checkbox" class="trigger-check" data-id="'+t.id+'" onchange="onTriggerCheckChange()"></td>' : '<td></td>')+
+          '<td><a href="#triggers/'+t.id+'" style="color:var(--accent);font-weight:600;text-decoration:none;">'+esc(t.name)+'</a></td>'+
+          '<td style="font-size:12.5px;">'+esc(itemName)+'</td>'+
+          '<td class="td-mono" style="font-size:12px;">'+esc(expr)+'</td>'+
+          '<td><span class="badge" style="'+(SEV_STYLE[t.severity]||'background:#888;color:#fff;')+'">'+esc(t.severity)+'</span></td>'+
+          '<td><span class="badge '+(t.enabled?'badge-ok':'badge-danger')+'">'+(t.enabled?'Enabled':'Disabled')+'</span></td>'+
+          (CAN_WRITE ? '<td><a href="#triggers/'+t.id+'" class="btn btn-secondary btn-sm">Edit</a></td>' : '')+
+        '</tr>';
+      }).join('');
+    }
+    window.toggleAllTriggers = function(chk){
+      if(!CAN_WRITE) return;
+      document.querySelectorAll('.trigger-check').forEach(function(c){ c.checked=chk.checked; });
+      onTriggerCheckChange();
+    };
+    window.onTriggerCheckChange = function(){
+      if(!CAN_WRITE) return;
+      var c = document.querySelectorAll('.trigger-check:checked').length;
+      document.getElementById('triggerBulkCount').textContent = c ? c+' selected' : '';
+      ['triggerBulkEnable','triggerBulkDisable','triggerBulkDelete'].forEach(function(id){
+        var el = document.getElementById(id); if(el) el.disabled = !c;
+      });
+    };
+    window.bulkTriggerAction = function(action){
+      if(!CAN_WRITE) return;
+      var ids = []; document.querySelectorAll('.trigger-check:checked').forEach(function(c){ ids.push(parseInt(c.dataset.id)); });
+      if(!ids.length) return;
+      if(action==='delete' && !confirm('Delete '+ids.length+' trigger(s)?')) return;
+      Promise.all(ids.map(function(id){
+        return action==='delete'
+          ? fetch('/api/triggers/'+id, {method:'DELETE', headers:{'X-CSRF-TOKEN':getCsrf()}})
+          : fetch('/api/triggers/'+id, {method:'PUT', headers:{'Content-Type':'application/json','X-CSRF-TOKEN':getCsrf()}, body:JSON.stringify({enabled:action==='enable'})});
+      })).then(function(){ navigateTo('triggers'); });
+    };
+
+    function prepareNewTriggerForm(){
+      document.getElementById('triggerFormTitle').textContent = 'New trigger';
+      document.getElementById('triggerSubmitBtn').textContent = 'Add';
+      document.getElementById('triggerSubmitBtn').style.display = '';
+      document.getElementById('triggerDeleteBtn').style.display = 'none';
+      document.getElementById('triggerFormError').style.display = 'none';
+      document.getElementById('triggerName').value = '';
+      document.getElementById('triggerDesc').value = '';
+      document.getElementById('triggerEnabled').value = 'true';
+      selectSeverity('Warning'); resetExprBuilder(); populateTriggerItems(null);
+    }
+    function prepareEditTriggerForm(id){
+      var doFill = function(t){
+        document.getElementById('triggerFormTitle').textContent = CAN_WRITE ? 'Edit trigger (#'+id+')' : 'Trigger (#'+id+')';
+        document.getElementById('triggerSubmitBtn').style.display = CAN_WRITE ? '' : 'none';
+        document.getElementById('triggerDeleteBtn').style.display = CAN_WRITE ? 'inline-flex' : 'none';
+        if(CAN_WRITE) document.getElementById('triggerDeleteBtn').setAttribute('data-edit-id', id);
+        document.getElementById('triggerFormError').style.display = 'none';
+        document.getElementById('triggerName').value = t.name || '';
+        document.getElementById('triggerDesc').value = t.description || '';
+        document.getElementById('triggerEnabled').value = String(t.enabled !== false);
+        selectSeverity(t.severity || 'Warning');
+        var readOnly = !CAN_WRITE;
+        ['triggerName','triggerDesc'].forEach(function(fid){
+          var el = document.getElementById(fid);
+          if(el){ el.readOnly=readOnly; el.style.opacity=readOnly?'.7':''; }
+        });
+        ['triggerItemId','triggerEnabled'].forEach(function(fid){
+          var el = document.getElementById(fid);
+          if(el){ el.disabled=readOnly; el.style.opacity=readOnly?'.7':''; }
+        });
+        var doP = function(){
+          populateTriggerItems(t.itemId);
+          var expr = t.expression||(t.func ? t.func+'() '+t.operator+' '+t.threshold+(t.duration>0?' for '+t.duration+'m':'') : '');
+          loadExprToBuilder(expr);
+        };
+        if(items.length){ doP(); }
+        else{ fetch('/api/items/template/'+TEMPLATE_ID).then(function(r){ return r.json(); }).then(function(d){ items=d; doP(); }); }
+      };
+      fetch('/api/triggers/'+id).then(function(r){ return r.json(); }).then(doFill).catch(function(){ navigateTo('triggers'); });
+    }
+    function populateTriggerItems(selId){
+      document.getElementById('triggerItemId').innerHTML = items.length
+        ? items.map(function(i){ return '<option value="'+i.id+'"'+(i.id===selId?' selected':'')+'>'+esc(i.name)+' ('+esc(i.itemKey)+')</option>'; }).join('')
+        : '<option value="">— No items yet —</option>';
+      updateTriggerUnitHint();
+    }
+    window.updateTriggerUnitHint = function(){
+      var sid = parseInt(document.getElementById('triggerItemId').value);
+      var item = items.find(function(i){ return i.id===sid; });
+      document.getElementById('triggerUnitHint').textContent = item && item.unitDisplay ? 'Unit: '+item.unitDisplay : '';
+    };
+    window.deleteCurrentTrigger = function(){
+      if(!CAN_WRITE) return;
+      var id = parseInt(document.getElementById('triggerDeleteBtn').getAttribute('data-edit-id')||'0') || parseInt(parseHash().replace('triggers/',''));
+      if(!id || !confirm('Delete this trigger?')) return;
+      fetch('/api/triggers/'+id, {method:'DELETE', headers:{'X-CSRF-TOKEN':getCsrf()}}).then(function(){ navigateTo('triggers'); });
+    };
+    window.submitTrigger = function(){
+      if(!CAN_WRITE) return;
+      var name = document.getElementById('triggerName').value.trim();
+      var itemId = parseInt(document.getElementById('triggerItemId').value);
+      var exprRaw = document.getElementById('triggerExpression').value.trim();
+      var errEl = document.getElementById('triggerFormError'); errEl.style.display = 'none';
+      if(!name){ errEl.textContent='Name is required.'; errEl.style.display='block'; return; }
+      if(!itemId){ errEl.textContent='Item is required.'; errEl.style.display='block'; return; }
+      var em = exprRaw.match(/(last|avg|min|max)\(\)\s*(>=|<=|>|<|=)\s*([0-9.]+)/);
+      var func=em?em[1]:'last', op=em?em[2]:'>', thr=em?parseFloat(em[3]):NaN;
+      if(isNaN(thr)){ errEl.textContent='Threshold is required.'; errEl.style.display='block'; return; }
+      var durMatch = exprRaw.match(/for\s+([0-9]+)m?/i);
+      var duration = durMatch ? parseInt(durMatch[1]) : 0;
+      var hash = parseHash();
+      var editId = hash.startsWith('triggers/') && hash!=='triggers/new' ? parseInt(hash.replace('triggers/','')) : null;
+      fetch(editId ? '/api/triggers/'+editId : '/api/triggers', {
+        method: editId ? 'PUT' : 'POST',
+        headers: {'Content-Type':'application/json','X-CSRF-TOKEN':getCsrf()},
+        body: JSON.stringify({
+          name: name, itemId: itemId, templateId: TEMPLATE_ID,
+          func: func, operator: op, threshold: thr,
+          expression: exprRaw, duration: duration,
+          severity: document.getElementById('triggerSeverity').value,
+          enabled: document.getElementById('triggerEnabled').value === 'true',
+          description: document.getElementById('triggerDesc').value.trim()
+        })
+      }).then(function(r){ return r.json(); }).then(function(d){
+        if(d.success){ navigateTo('triggers'); }
+        else{ errEl.textContent=d.error||'Failed.'; errEl.style.display='block'; }
+      }).catch(function(){ errEl.textContent='Request failed.'; errEl.style.display='block'; });
+    };
+
+    /* ══ Expression builder ══ */
+    window.addExprRow = function(conj,func,op,thr,dur){
+      var rid = 'expr-row-'+(++exprRowCount);
+      var div = document.createElement('div'); div.id=rid; div.style.cssText='display:flex;gap:6px;align-items:center;flex-wrap:wrap;';
+      var isFirst = !document.getElementById('exprBuilderRows').children.length;
+      var cH = isFirst
+        ? '<span style="width:32px;font-size:12px;color:var(--text-muted);text-align:center;flex-shrink:0;">IF</span>'
+        : '<select class="form-control" style="width:60px;" onchange="rebuildExpr()"><option value="and"'+(conj==='or'?'':' selected')+'>AND</option><option value="or"'+(conj==='or'?' selected':'')+'>OR</option></select>';
+      var fH = '<select class="form-control" style="width:100px;" onchange="rebuildExpr()"><option value="">— Func —</option>'+
+        ['last','avg','min','max'].map(function(f){ return '<option value="'+f+'"'+(func===f?' selected':'')+'>'+f+'()</option>'; }).join('')+'</select>';
+      var oH = '<select class="form-control" style="width:64px;" onchange="rebuildExpr()"><option value="">— Op —</option>'+
+        ['>','>=','<','<=','='].map(function(o){ return '<option value="'+o+'"'+(op===o?' selected':'')+'>'+o+'</option>'; }).join('')+'</select>';
+      var vH = '<input type="text" class="form-control" style="width:90px;" placeholder="value" value="'+(thr||'')+'" oninput="rebuildExpr()">';
+      var durH = '<span style="font-size:12px;color:var(--text-muted);flex-shrink:0;">for</span>'+
+        '<input type="text" class="form-control td-mono" style="width:70px;" placeholder="e.g. 5m" value="'+(dur||'')+'" oninput="rebuildExpr()">';
+      var dB = isFirst ? '' : '<button type="button" class="btn btn-secondary btn-sm" style="padding:4px 8px;flex-shrink:0;" onclick="removeExprRow(this)">&#10005;</button>';
+      div.innerHTML = cH+fH+oH+vH+durH+dB;
+      document.getElementById('exprBuilderRows').appendChild(div); rebuildExpr();
+    };
+    window.removeExprRow = function(btn){ var r=btn.closest?btn.closest('[id^="expr-row-"]'):btn.parentNode; if(r)r.remove(); rebuildExpr(); };
+    window.rebuildExpr = function(){
+      var rows=document.getElementById('exprBuilderRows').children, parts=[];
+      for(var i=0;i<rows.length;i++){
+        var sels=rows[i].querySelectorAll('select'), inputs=rows[i].querySelectorAll('input[type=text]');
+        var f='',o='',v='',conj='',dur='';
+        if(i===0){ f=sels[0]?sels[0].value:''; o=sels[1]?sels[1].value:''; v=inputs[0]?inputs[0].value.trim():''; dur=inputs[1]?inputs[1].value.trim():''; }
+        else{ conj=sels[0]?sels[0].value:'and'; f=sels[1]?sels[1].value:''; o=sels[2]?sels[2].value:''; v=inputs[0]?inputs[0].value.trim():''; dur=inputs[1]?inputs[1].value.trim():''; }
+        if(f&&o&&v!=='') parts.push((i===0?'':conj+' ')+f+'() '+o+' '+v+(dur?' for '+dur:''));
+      }
+      document.getElementById('triggerExpression').value = parts.join(' ');
+    };
+    function resetExprBuilder(){ document.getElementById('exprBuilderRows').innerHTML=''; exprRowCount=0; document.getElementById('triggerExpression').value=''; addExprRow(); }
+    function loadExprToBuilder(expr){
+      document.getElementById('exprBuilderRows').innerHTML=''; exprRowCount=0;
+      if(!expr){ addExprRow(); return; }
+      var re=/(and|or)?\s*(last|avg|min|max)\(\)\s*(>=|<=|>|<|=)\s*([0-9.]+)(?:\s+for\s+([0-9]+m?))?/gi;
+      var m, first=true;
+      while((m=re.exec(expr))!==null){ addExprRow(first?null:(m[1]||'and'),m[2],m[3],m[4],m[5]||''); first=false; }
+      if(first){ addExprRow(); document.getElementById('triggerExpression').value=expr; }
+    }
+    window.selectSeverity = function(sev){
+      document.getElementById('triggerSeverity').value = sev;
+      document.querySelectorAll('.sev-btn').forEach(function(b){ b.style.filter = b.dataset.sev===sev ? 'brightness(1)' : 'brightness(0.55)'; });
+    };
+
+    function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+    function typeLabel(m,vt){ var arr=VALUE_TYPES[m]||[]; for(var i=0;i<arr.length;i++){ if(arr[i].key===vt) return arr[i].label; } return (m||'')+'.'+(vt||''); }
+
+    handleRoute();
+  })();
+  </script>
+
+</div>
+</body>
+</html>

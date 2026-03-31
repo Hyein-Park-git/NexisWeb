@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="content">
+
+  <input type="hidden" id="hostIdData"   th:value="${host != null ? host.id : 0}">
+  <input type="hidden" id="hostnameData" th:value="${hostname}">
+
+  <style>
+    .quick-link { font-size:12.5px; color:var(--accent); text-decoration:none; display:block; padding:1px 0; }
+    .quick-link:hover { text-decoration:underline; }
+    .quick-link.active-link { font-weight:700; color:var(--text); }
+  </style>
+
+  <!-- 호스트 헤더 -->
+  <div class="card" style="margin-bottom:14px;">
+    <div style="padding:14px 20px;display:flex;align-items:center;gap:20px;flex-wrap:wrap;">
+      <div>
+        <div style="font-size:15px;font-weight:600;color:var(--text);" th:text="${hostname}">—</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:2px;"
+             th:text="${host != null ? (host.ipAddress ?: '—') : '—'}">—</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <span th:if="${host != null and host.agentActive}"   class="badge badge-ok">Active</span>
+        <span th:if="${host != null and !host.agentActive}"  class="badge badge-danger">Inactive</span>
+        <span style="font-size:12px;color:var(--text-muted);"
+              th:text="${host != null ? (host.os ?: '—') : '—'}">—</span>
+      </div>
+      <div style="margin-left:auto;display:flex;gap:8px;">
+        <a th:href="@{/monitoring/hosts/{id}(id=${host != null ? host.id : 0})}"
+           class="btn btn-secondary btn-sm">⚙ Config</a>
+        <a href="/monitoring/latest-data" class="btn btn-secondary btn-sm">← Latest Data</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ 아이템 목록 뷰 ══ -->
+  <div id="listView">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Items</span>
+        <span class="card-count" id="itemCountBadge"></span>
+      </div>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Key</th>
+            <th>Last Check</th>
+            <th>Last Value</th>
+            <th style="width:160px;text-align:right;"></th>
+          </tr>
+        </thead>
+        <tbody id="itemListBody">
+          <tr><td colspan="5" class="table-empty">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ══ 상세 뷰 (Graph / Data) ══ -->
+  <div id="detailView" style="display:none;">
+
+    <!-- 상단 바 -->
+    <div style="display:flex;align-items:center;justify-content:space-between;
+                margin-bottom:12px;flex-wrap:nowrap;gap:8px;">
+      <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+        <button class="btn btn-secondary btn-sm" style="white-space:nowrap;" onclick="backToList()">← Back</button>
+        <div style="min-width:0;overflow:hidden;">
+          <span id="detailItemName" style="font-size:14px;font-weight:600;color:var(--text);white-space:nowrap;">—</span>
+          <span id="detailItemKey"  style="font-size:11.5px;color:var(--text-muted);margin-left:8px;white-space:nowrap;">—</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0;margin-left:12px;">
+        <button class="btn btn-sm" id="btnGraph" onclick="switchDetailView('graph')">Graph</button>
+        <button class="btn btn-sm" id="btnData"  onclick="switchDetailView('data')">Data</button>
+      </div>
+    </div>
+
+    <!-- 기간 선택 -->
+    <div class="card" style="margin-bottom:14px;">
+      <div style="padding:12px 20px;display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start;">
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <label style="width:36px;font-size:12.5px;color:var(--text-muted);">From</label>
+            <input type="text" id="fromInput" class="form-control"
+                   style="width:160px;height:30px;font-size:12.5px;" placeholder="YYYY-MM-DD HH:mm">
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <label style="width:36px;font-size:12.5px;color:var(--text-muted);">To</label>
+            <input type="text" id="toInput" class="form-control"
+                   style="width:160px;height:30px;font-size:12.5px;" placeholder="YYYY-MM-DD HH:mm">
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="applyCustomRange()"
+                  style="margin-left:44px;width:74px;">Apply</button>
+        </div>
+        <div style="display:flex;gap:28px;flex-wrap:wrap;">
+          <div style="display:flex;flex-direction:column;gap:5px;">
+            <a href="javascript:void(0)" class="quick-link" onclick="setMinutes(5)">Last 5 minutes</a>
+            <a href="javascript:void(0)" class="quick-link" onclick="setMinutes(15)">Last 15 minutes</a>
+            <a href="javascript:void(0)" class="quick-link" onclick="setMinutes(30)">Last 30 minutes</a>
+            <a href="javascript:void(0)" class="quick-link" id="ql-1h" onclick="setMinutes(60)">Last 1 hour</a>
+            <a href="javascript:void(0)" class="quick-link" onclick="setHours(3)">Last 3 hours</a>
+            <a href="javascript:void(0)" class="quick-link" onclick="setHours(6)">Last 6 hours</a>
+            <a href="javascript:void(0)" class="quick-link" onclick="setHours(12)">Last 12 hours</a>
+            <a href="javascript:void(0)" class="quick-link" onclick="setHours(24)">Last 1 day</a>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:5px;">
+            <a href="javascript:void(0)" class="quick-link" onclick="setQuick(2,'days')">Last 2 days</a>
+            <a href="javascript:void(0)" class="quick-link" onclick="setQuick(7,'days')">Last 7 days</a>
+            <a href="javascript:void(0)" class="quick-link" onclick="setQuick(30,'days')">Last 30 days</a>
+            <a href="javascript:void(0)" class="quick-link" onclick="setToday()">Today</a>
+            <a href="javascript:void(0)" class="quick-link" onclick="setTodaySoFar()">Today so far</a>
+            <a href="javascript:void(0)" class="quick-link" onclick="setThisWeek()">This week</a>
+            <a href="javascript:void(0)" class="quick-link" onclick="setThisMonth()">This month</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Graph 뷰 -->
+    <div id="graphPane">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title" id="graphTitle">—</span>
+        </div>
+        <div style="padding:16px 18px;">
+          <div id="detailChart" style="height:240px;"></div>
+          <div id="chartStats" style="display:none;
+               border-top:1px solid var(--border);margin-top:12px;padding-top:10px;
+               display:flex;gap:32px;justify-content:center;">
+            <div style="text-align:center;">
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:2px;">Min</div>
+              <div class="td-mono" id="statMin" style="font-size:13px;font-weight:600;">—</div>
+            </div>
+            <div style="text-align:center;">
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:2px;">Avg</div>
+              <div class="td-mono" id="statAvg" style="font-size:13px;font-weight:600;color:var(--accent);">—</div>
+            </div>
+            <div style="text-align:center;">
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:2px;">Max</div>
+              <div class="td-mono" id="statMax" style="font-size:13px;font-weight:600;">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Data 뷰 -->
+    <div id="dataPane" style="display:none;">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title" id="dataTitle">—</span>
+          <span class="card-count" id="dataTotalCount"></span>
+        </div>
+        <table class="data-table">
+          <thead>
+            <tr><th>Collected At</th><th>Value</th><th>Unit</th></tr>
+          </thead>
+          <tbody id="dataTableBody">
+            <tr><td colspan="3" class="table-empty">Loading...</td></tr>
+          </tbody>
+        </table>
+        <div id="pagingBar"
+             style="display:flex;align-items:center;justify-content:center;
+                    gap:6px;padding:12px;border-top:1px solid var(--border);">
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 아이템 없을 때 -->
+  <div id="noItemsMsg" style="display:none;">
+    <div class="card">
+      <div style="text-align:center;padding:48px 0;color:var(--text-muted);font-size:13px;">
+        No items configured for this host.<br>
+        <a id="goConfigLink" href="#" style="color:var(--accent);">Go to Host configuration</a>
+        to add items.
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+  <script>
+    var HOST_ID  = parseInt(document.getElementById('hostIdData').value) || 0;
+    var HOSTNAME = document.getElementById('hostnameData').value || '';
+
+    var itemList          = [];
+    var currentItem       = null;
+    var currentFrom       = null;
+    var currentTo         = null;
+    var detailChart       = null;
+    var allData           = [];
+    var PAGE_SIZE         = 50;
+    var currentPage       = 1;
+    var currentDetailView = 'graph';
+
+    document.getElementById('goConfigLink').href = '/monitoring/hosts/' + HOST_ID;
+
+    // ── 초기 로드 ─────────────────────────────────────────
+    (function init() {
+	    var hash = location.hash;
+	    var match = hash.match(/^#item\/(\d+)\/(graph|data)$/);
+	
+	    if (match) {
+	        var itemId = parseInt(match[1]);
+	        var view   = match[2];
+	
+	        history.replaceState({ itemId, view }, '', location.href);
+	    } else {
+	        history.replaceState({ page: 'list' }, '', location.href);
+	    }
+	
+	    if (HOST_ID === 0) { showNoItems(); return; }
+	
+	    fetch('/api/items/host/' + HOST_ID)
+	        .then(r => r.json())
+	        .then(items => {
+	            var enabled = items.filter(i => i.enabled);
+	            if (!enabled.length) { showNoItems(); return; }
+	
+	            itemList = enabled;
+	            loadItemListLatestValues();
+	
+	            if (match) {
+	                openItemDetail(itemId, view, 'silent'); // 🔥 push 안함
+	            }
+	        });
+	})();
+
+    function showNoItems() {
+      document.getElementById('noItemsMsg').style.display = '';
+      document.getElementById('listView').style.display   = 'none';
+    }
+
+    // ── 아이템 목록: 최근값 로드 ──────────────────────────
+    function loadItemListLatestValues() {
+      var tbody = document.getElementById('itemListBody');
+      document.getElementById('itemCountBadge').textContent = itemList.length + ' items';
+
+      tbody.innerHTML = itemList.map(function(item) {
+        return '<tr id="item-row-' + item.id + '">' +
+          '<td class="td-bold" style="color:var(--accent);cursor:pointer;" ' +
+              'onclick="openItem(' + item.id + ')">' + esc(item.name) + '</td>' +
+          '<td class="td-mono" style="font-size:11.5px;color:var(--text-muted);">' + esc(item.itemKey) + '</td>' +
+          '<td class="td-mono td-muted" id="lc-' + item.id + '">—</td>' +
+          '<td class="td-mono" id="lv-' + item.id + '">—</td>' +
+          '<td style="text-align:right;">' +
+            '<button class="btn btn-secondary btn-sm" style="margin-right:4px;" ' +
+            'onclick="openItemDetail(' + item.id + ', \'graph\', \'push\')">Graph</button>' +
+            '<button class="btn btn-secondary btn-sm" ' +
+                    'onclick="openItemDetail(' + item.id + ',\'data\', \'push\')">Data</button>' +
+          '</td>' +
+        '</tr>';
+      }).join('');
+
+      // 각 아이템 최근값 비동기 로드
+      itemList.forEach(function(item) {
+		fetch('/api/items/' + item.id + '/latest')
+		  .then(function(r) { return r.json(); })
+		  .then(function(d) {
+		    var lcEl = document.getElementById('lc-' + item.id);
+		    var lvEl = document.getElementById('lv-' + item.id);
+		    if (lcEl) lcEl.textContent = d.time ? d.time.substring(0, 16) : '—';
+		    if (lvEl) {
+		      var unitStr = item.unitDisplay || d.unitLabel || '';
+		      lvEl.textContent = d.value != null
+		        ? d.value + (unitStr ? ' ' + unitStr : '')
+		        : '—';
+		    }
+		  })
+		  .catch(function() {});
+      });
+    }
+
+    function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+    function openItem(id) {
+        openItemDetail(id, 'graph', 'push');
+    }
+
+    function openItemDetail(id, view, mode) {
+        // mode: 'push' | 'replace' | 'silent'
+
+        currentItem = null;
+        for (var i = 0; i < itemList.length; i++) {
+            if (itemList[i].id === id) { currentItem = itemList[i]; break; }
+        }
+        if (!currentItem) return;
+
+        var url = '#item/' + id + '/' + view;
+        var state = { itemId: id, view: view };
+
+        if (mode === 'push') {
+            history.pushState(state, '', url);
+        } else if (mode === 'replace') {
+            history.replaceState(state, '', url);
+        }
+
+        // 화면 전환
+        document.getElementById('listView').style.display   = 'none';
+        document.getElementById('detailView').style.display = '';
+        document.getElementById('noItemsMsg').style.display = 'none';
+
+        // 텍스트 세팅
+        document.getElementById('detailItemName').textContent = currentItem.name || '';
+        document.getElementById('detailItemKey').textContent  = currentItem.itemKey || '';
+        document.getElementById('graphTitle').textContent     = currentItem.name || '';
+        document.getElementById('dataTitle').textContent      = currentItem.name || '';
+
+        // 기본 시간 범위
+        var now  = new Date();
+        var from = new Date(now - 3600000);
+        applyRange(from, now, 'ql-1h');
+
+        currentDetailView = view;
+
+        document.getElementById('graphPane').style.display = view === 'graph' ? '' : 'none';
+        document.getElementById('dataPane').style.display  = view === 'data'  ? '' : 'none';
+
+        document.getElementById('btnGraph').classList.toggle('btn-primary', view === 'graph');
+        document.getElementById('btnData').classList.toggle('btn-primary',  view === 'data');
+    }
+
+    function backToList() {
+        document.getElementById('detailView').style.display = 'none';
+        document.getElementById('listView').style.display   = '';
+        if (detailChart) { detailChart.dispose(); detailChart = null; }
+        // history.pushState 제거 — popstate에서 호출될 때 중복 push 방지
+    }
+
+	 // 브라우저 뒤로가기 → 목록으로 복귀 (페이지 이동 없이)
+    window.addEventListener('popstate', function(e) {
+	    var state = e.state;
+	
+	    if (state && state.itemId) {
+	        openItemDetail(state.itemId, state.view, 'silent');
+	    } else {
+	        backToList();
+	    }
+	});
+
+    // ── 상세 뷰 전환 ─────────────────────────────────────
+    function switchDetailView(view) {
+	    currentDetailView = view;
+	
+	    if (currentItem) {
+	        history.replaceState(
+	            { itemId: currentItem.id, view: view },
+	            '',
+	            '#item/' + currentItem.id + '/' + view
+	        );
+	    }
+	
+	    document.getElementById('graphPane').style.display = view === 'graph' ? '' : 'none';
+	    document.getElementById('dataPane').style.display  = view === 'data'  ? '' : 'none';
+	
+	    document.getElementById('btnGraph').classList.toggle('btn-primary', view === 'graph');
+	    document.getElementById('btnData').classList.toggle('btn-primary',  view === 'data');
+	
+	    if (view === 'graph' && currentFrom) loadDetailData();
+	    if (view === 'data'  && currentFrom) renderPage(1);
+	}
+
+    // ── 기간 선택 ─────────────────────────────────────────
+    function setMinutes(m) { applyRange(new Date(Date.now()-m*60000), new Date(), m===60?'ql-1h':null); }
+    function setHours(h)   { setMinutes(h*60); }
+    function setQuick(n, unit) {
+      var now = new Date(), from = new Date(now);
+      if (unit==='days') from.setDate(from.getDate()-n);
+      applyRange(from, now);
+    }
+    function setToday()      { var n=new Date(); applyRange(new Date(n.getFullYear(),n.getMonth(),n.getDate()), new Date(n.getFullYear(),n.getMonth(),n.getDate(),23,59,59)); }
+    function setTodaySoFar() { var n=new Date(); applyRange(new Date(n.getFullYear(),n.getMonth(),n.getDate()),n); }
+    function setThisWeek()   { var n=new Date(),f=new Date(n); f.setDate(n.getDate()-n.getDay()); f.setHours(0,0,0,0); applyRange(f,n); }
+    function setThisMonth()  { var n=new Date(); applyRange(new Date(n.getFullYear(),n.getMonth(),1),n); }
+    function applyCustomRange() {
+      var f=new Date(document.getElementById('fromInput').value);
+      var t=new Date(document.getElementById('toInput').value);
+      if (isNaN(f)||isNaN(t)) { alert('Invalid date.'); return; }
+      applyRange(f,t);
+    }
+    function applyRange(from, to, activeLinkId) {
+      currentFrom = from; currentTo = to;
+      document.getElementById('fromInput').value = fmtInput(from);
+      document.getElementById('toInput').value   = fmtInput(to);
+      document.querySelectorAll('.quick-link').forEach(function(el) { el.classList.remove('active-link'); });
+      if (activeLinkId) { var el=document.getElementById(activeLinkId); if(el)el.classList.add('active-link'); }
+      loadDetailData();
+    }
+    function fmtInput(d) {
+      return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+' '+pad(d.getHours())+':'+pad(d.getMinutes());
+    }
+    function pad(n) { return String(n).padStart(2,'0'); }
+
+    // ── 데이터 로드 ───────────────────────────────────────
+    function loadDetailData() {
+      if (!currentItem || !currentFrom) return;
+      var diffMin = Math.max(1, Math.round((currentTo-currentFrom)/60000));
+      fetch('/api/items/' + currentItem.id + '/chart?minutes=' + diffMin)
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          var fromMs = currentFrom.getTime(), toMs = currentTo.getTime();
+          allData = data.filter(function(d) {
+            var t = new Date(d.time).getTime(); return t >= fromMs && t <= toMs;
+          });
+          if (currentDetailView === 'graph') renderGraph();
+          else renderPage(1);
+        })
+        .catch(function() {});
+    }
+
+    // ── 그래프 렌더 ───────────────────────────────────────
+    function getUnit() {
+      if (allData.length && allData[0].unitLabel != null) return allData[0].unitLabel;
+      var u = currentItem.unit || '';
+      return {percent:'%',gb:'GB',mb:'MB',bytes:'Bytes',float:'',unsigned:''}[u] || '';
+    }
+
+    function renderGraph() {
+      var unit = getUnit();
+      var diffMin = (currentTo - currentFrom) / 60000;
+      var labelInterval = Math.max(0, Math.floor(allData.length / 8) - 1);
+
+      if (!detailChart) detailChart = echarts.init(document.getElementById('detailChart'));
+      detailChart.setOption({
+        animation: false,
+        tooltip: {
+          trigger:'axis',
+          formatter: function(p) {
+            return p[0].name + '<br>' + p[0].marker + (currentItem.name||'') +
+              ': <b>' + (p[0].value!=null ? p[0].value+(unit?' '+unit:'') : 'N/A') + '</b>';
+          }
+        },
+        toolbox: {
+          right:8, top:4,
+          feature: { dataZoom:{yAxisIndex:'none'}, restore:{title:'Reset'} },
+          iconStyle: { borderColor:'var(--text-muted)' }
+        },
+        dataZoom: [{ type:'inside', xAxisIndex:0, filterMode:'none', zoomOnMouseWheel:false }],
+        grid: { left:4, right:4, top:16, bottom:24, containLabel:true },
+        xAxis: {
+          type:'category',
+          data: allData.map(function(d) { return d.time; }),
+          axisLabel: {
+            color:'var(--text-muted)', fontSize:10, interval:labelInterval,
+            formatter: function(v) {
+              if (!v) return '';
+              return diffMin <= 1440 ? v.substring(11,16) : v.substring(5,10)+' '+v.substring(11,16);
+            }
+          }
+        },
+        yAxis: {
+          type:'value',
+          axisLabel: { color:'var(--text-muted)', fontSize:11, formatter: function(v){ return unit ? v+' '+unit : v; } },
+          splitLine: { lineStyle:{ color:'var(--border)' } }
+        },
+        series: [{
+          type:'line', data: allData.map(function(d){ return d.value; }),
+          smooth:false, connectNulls:false, symbol:'none',
+          lineStyle:{ width:1.5, color:'#3d8de0' },
+          itemStyle:{ color:'#3d8de0' },
+          areaStyle:{ color:'#3d8de0', opacity:0.06 }
+        }]
+      });
+
+      var vals = allData.map(function(d) { return d.value; }).filter(function(v) { return v != null; });
+      if (vals.length) {
+        var min = Math.min.apply(null, vals);
+        var max = Math.max.apply(null, vals);
+        var avg = vals.reduce(function(a,b){ return a+b; }, 0) / vals.length;
+        var fmt = function(v) { return (Math.round(v*100)/100) + (unit ? ' '+unit : ''); };
+        document.getElementById('statMin').textContent = fmt(min);
+        document.getElementById('statAvg').textContent = fmt(avg);
+        document.getElementById('statMax').textContent = fmt(max);
+        document.getElementById('chartStats').style.display = 'flex';
+      } else {
+        document.getElementById('chartStats').style.display = 'none';
+      }
+    }
+
+    // ── Data 테이블 + 페이징 ─────────────────────────────
+    function renderPage(page) {
+      currentPage = page;
+      var unit = getUnit();
+      var reversed = allData.slice().reverse();
+      var total    = reversed.length;
+      var totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+      if (page > totalPages) page = totalPages;
+      var start = (page-1) * PAGE_SIZE;
+      var pageData = reversed.slice(start, start + PAGE_SIZE);
+
+      document.getElementById('dataTotalCount').textContent = total + ' rows';
+
+      var tbody = document.getElementById('dataTableBody');
+      if (!pageData.length) {
+        tbody.innerHTML = '<tr><td colspan="3" class="table-empty">No data in this period.</td></tr>';
+      } else {
+        tbody.innerHTML = pageData.map(function(d) {
+          return '<tr>' +
+            '<td class="td-mono td-muted">' + (d.time||'—') + '</td>' +
+            '<td class="td-mono">' + (d.value!=null ? d.value : '—') + '</td>' +
+            '<td class="td-mono" style="color:var(--text-muted);">' + (unit || '—') + '</td>' +
+          '</tr>';
+        }).join('');
+      }
+
+      var bar = document.getElementById('pagingBar');
+      if (totalPages <= 1) { bar.style.display='none'; return; }
+      bar.style.display = 'flex';
+      var html = '<button class="btn btn-secondary btn-sm" '+(page<=1?'disabled':'onclick="renderPage('+(page-1)+')"')+'>‹</button>';
+      var s=Math.max(1,page-3), e=Math.min(totalPages,page+3);
+      if(s>1) html+='<button class="btn btn-secondary btn-sm" onclick="renderPage(1)">1</button>';
+      if(s>2) html+='<span style="color:var(--text-muted);padding:0 4px;">…</span>';
+      for(var i=s;i<=e;i++) html+='<button class="btn btn-sm '+(i===page?'btn-primary':'btn-secondary')+'" onclick="renderPage('+i+')">'+i+'</button>';
+      if(e<totalPages-1) html+='<span style="color:var(--text-muted);padding:0 4px;">…</span>';
+      if(e<totalPages)   html+='<button class="btn btn-secondary btn-sm" onclick="renderPage('+totalPages+')">'+totalPages+'</button>';
+      html+='<button class="btn btn-secondary btn-sm" '+(page>=totalPages?'disabled':'onclick="renderPage('+(page+1)+')"')+'>›</button>';
+      html+='<span style="font-size:12px;color:var(--text-muted);margin-left:6px;">'+page+' / '+totalPages+'</span>';
+      bar.innerHTML = html;
+    }
+
+    window.addEventListener('resize', function() { if (detailChart) detailChart.resize(); });
+  </script>
+
+</div>
+</body>
+</html>

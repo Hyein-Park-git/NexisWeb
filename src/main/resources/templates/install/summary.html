@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="content">
+    <div class="inst-card">
+        <div class="inst-card-head">
+            <div class="inst-card-title">Pre-installation summary</div>
+            <div class="inst-card-desc">Review the information you entered before installing.</div>
+        </div>
+        <div class="inst-card-body">
+            <div th:if="${error}" class="inst-alert inst-alert--err" style="margin-bottom:14px;">
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><circle cx="8" cy="8" r="7.5" stroke="currentColor"/><line x1="5.5" y1="5.5" x2="10.5" y2="10.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="10.5" y1="5.5" x2="5.5" y2="10.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                <span th:text="${error}"></span>
+            </div>
+            <div class="inst-alert inst-alert--info" style="margin-bottom:16px;">
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><circle cx="8" cy="8" r="7.5" stroke="currentColor"/><line x1="8" y1="5" x2="8" y2="9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="11" r="0.75" fill="currentColor"/></svg>
+                Review the information below and click Install to complete the setup.
+            </div>
+
+            <div style="margin-bottom:18px;">
+                <div class="summary-section-label">Database Connection</div>
+                <table class="summary-table">
+                    <tr><td class="summary-key">Database type</td><td class="summary-val" th:text="${config.dbType}">—</td></tr>
+                    <tr><td class="summary-key">Host</td><td class="summary-val" th:text="${config.dbHost+':'+config.dbPort}">—</td></tr>
+                    <tr><td class="summary-key">Database</td><td class="summary-val" th:text="${config.dbName}">—</td></tr>
+                    <tr><td class="summary-key">User</td><td class="summary-val" th:text="${config.dbUser}">—</td></tr>
+                    <tr><td class="summary-key">Password</td><td class="summary-val">••••••••</td></tr>
+                </table>
+            </div>
+            <div>
+                <div class="summary-section-label">Nexis Server</div>
+                <table class="summary-table">
+                    <tr><td class="summary-key">Server name</td><td class="summary-val" th:text="${config.serverName}">—</td></tr>
+                    <tr><td class="summary-key">Host</td><td class="summary-val" th:text="${config.serverHost}">—</td></tr>
+                    <tr><td class="summary-key">Port</td><td class="summary-val" th:text="${config.serverPort}">—</td></tr>
+                </table>
+            </div>
+        </div>
+        <div class="inst-card-foot">
+            <a th:href="@{/install/server-details}" class="btn btn-secondary">← Previous</a>
+            <form th:action="@{/install/finish}" method="post" style="display:inline;margin:0;">
+                <button type="submit" class="btn btn-primary">
+                    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style="margin-right:4px"><path d="M3 8l4 4 6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    Install
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+</body>
+</html>

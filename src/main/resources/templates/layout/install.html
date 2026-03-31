@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${stepName} + ' — Nexis Setup'">Nexis Setup</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" th:href="@{/css/install.css}">
+    <script>(function(){ document.documentElement.setAttribute('data-theme', localStorage.getItem('nexis-install-theme')||'light'); })();</script>
+</head>
+<body>
+
+<div class="inst-shell">
+
+  <!-- Header -->
+  <header class="inst-header">
+    <a th:href="@{/install/welcome}" class="inst-brand">
+      <div class="inst-brand-logo">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
+          <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+          <path d="M2 17l10 5 10-5"            stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+          <path d="M2 12l10 5 10-5"            stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <span class="inst-brand-name">Nexis</span>
+    </a>
+    <span class="inst-header-sep">|</span>
+    <span class="inst-header-sub">Installation Wizard</span>
+    <button class="inst-theme-btn" onclick="toggleInstallTheme()">
+      <span id="instThemeIcon">🌙</span>
+      <span id="instThemeLabel">Dark</span>
+    </button>
+  </header>
+
+  <div class="inst-body">
+
+    <!-- Steps sidebar -->
+    <aside class="inst-sidebar">
+      <ul class="inst-steps">
+
+        <li th:class="'inst-step' + (${step}==1?' inst-step--active':(${step}>1?' inst-step--done':''))">
+          <div class="inst-step-num">
+            <span th:if="${step<=1}">1</span>
+            <svg th:if="${step>1}" width="11" height="11" viewBox="0 0 16 16" fill="none"><polyline points="3,8.5 6,11.5 13,5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <span class="inst-step-label">Welcome</span>
+        </li>
+
+        <li th:class="'inst-step' + (${step}==2?' inst-step--active':(${step}>2?' inst-step--done':''))">
+          <div class="inst-step-num">
+            <span th:if="${step<=2}">2</span>
+            <svg th:if="${step>2}" width="11" height="11" viewBox="0 0 16 16" fill="none"><polyline points="3,8.5 6,11.5 13,5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <span class="inst-step-label">Check of pre-requisites</span>
+        </li>
+
+        <li th:class="'inst-step' + (${step}==3?' inst-step--active':(${step}>3?' inst-step--done':''))">
+          <div class="inst-step-num">
+            <span th:if="${step<=3}">3</span>
+            <svg th:if="${step>3}" width="11" height="11" viewBox="0 0 16 16" fill="none"><polyline points="3,8.5 6,11.5 13,5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <span class="inst-step-label">Configure DB connection</span>
+        </li>
+
+        <li th:class="'inst-step' + (${step}==4?' inst-step--active':(${step}>4?' inst-step--done':''))">
+          <div class="inst-step-num">
+            <span th:if="${step<=4}">4</span>
+            <svg th:if="${step>4}" width="11" height="11" viewBox="0 0 16 16" fill="none"><polyline points="3,8.5 6,11.5 13,5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <span class="inst-step-label">Nexis server details</span>
+        </li>
+
+        <li th:class="'inst-step' + (${step}==5?' inst-step--active':(${step}>5?' inst-step--done':''))">
+          <div class="inst-step-num">
+            <span th:if="${step<=5}">5</span>
+            <svg th:if="${step>5}" width="11" height="11" viewBox="0 0 16 16" fill="none"><polyline points="3,8.5 6,11.5 13,5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <span class="inst-step-label">Pre-installation summary</span>
+        </li>
+
+        <li th:class="'inst-step' + (${step}==6?' inst-step--active':'')">
+          <div class="inst-step-num"><span>6</span></div>
+          <span class="inst-step-label">Install</span>
+        </li>
+
+      </ul>
+    </aside>
+
+    <!-- Content -->
+    <div class="inst-content" th:insert="~{__${viewName}__ :: content}"></div>
+
+  </div>
+</div>
+
+<script>
+function toggleInstallTheme() {
+  const html  = document.documentElement;
+  const icon  = document.getElementById('instThemeIcon');
+  const label = document.getElementById('instThemeLabel');
+  const next  = html.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+  html.setAttribute('data-theme', next);
+  icon.textContent  = next === 'dark' ? '☀️' : '🌙';
+  label.textContent = next === 'dark' ? 'Light' : 'Dark';
+  localStorage.setItem('nexis-install-theme', next);
+}
+window.addEventListener('DOMContentLoaded', function() {
+  const t = localStorage.getItem('nexis-install-theme') || 'light';
+  const icon  = document.getElementById('instThemeIcon');
+  const label = document.getElementById('instThemeLabel');
+  if (t === 'dark') { icon.textContent = '☀️'; label.textContent = 'Light'; }
+});
+</script>
+
+</body>
+</html>
