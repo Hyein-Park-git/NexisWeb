@@ -5,14 +5,14 @@
 <img width="1280" height="819" alt="1" src="https://github.com/user-attachments/assets/89ad98d5-886b-46fd-8b4e-336ea8679bea" />
 
 ---
-
+<br><br>
 
 ## 1. Dashboard
 
 <img width="1280" height="822" alt="2" src="https://github.com/user-attachments/assets/43099efa-1edb-43e9-b061-8888b8cfd5a3" />
 
 ---
-
+<br><br>
 
 ## 2. Hosts
 
@@ -28,7 +28,7 @@
 <img width="1280" height="819" alt="4" src="https://github.com/user-attachments/assets/a2268f7e-2d82-46f5-8071-d8a60f7e468f" />
 
 ---
-
+<br><br>
 
 ## 3. Latest Data
 
@@ -45,14 +45,14 @@
 <img width="1280" height="2346" alt="7" src="https://github.com/user-attachments/assets/6ac5d5fe-38c4-45c5-90f6-064522e2ea45" />
 
 ---
-
+<br><br>
 
 ## 4. Problems
 
 <img width="1280" height="817" alt="8" src="https://github.com/user-attachments/assets/7a9f33f3-aec4-49a9-9453-ff219f48bbe7" />
 
 ---
-
+<br><br>
 
 ## 5. Templates
 
@@ -60,7 +60,7 @@
 <img width="1280" height="819" alt="10" src="https://github.com/user-attachments/assets/a0878ffe-384f-46c2-97ea-c34d5724f9c6" />
 
 ---
-
+<br><br>
 
 ## 6. Host Groups
 
@@ -70,7 +70,7 @@
 <img width="1280" height="817" alt="12" src="https://github.com/user-attachments/assets/e9991978-7150-434b-83db-2e8bbff39c3d" />
 
 ---
-
+<br><br>
 
 ## 7. Users
 
@@ -78,7 +78,7 @@
 <img width="1280" height="843" alt="14" src="https://github.com/user-attachments/assets/d03a873a-777b-47c9-b8ae-f5c5f59e0104" />
 
 ---
-
+<br><br>
 
 ## 8. User Groups
 
@@ -88,7 +88,7 @@
 <img width="1280" height="810" alt="16" src="https://github.com/user-attachments/assets/42574fa6-be7b-40ca-a9cc-de32110f5bd8" />
 
 ---
-
+<br><br>
 
 ## 9. Setting
 
@@ -96,3 +96,4 @@
 <img width="1280" height="833" alt="17" src="https://github.com/user-attachments/assets/47a6215d-e7b7-4626-a96f-dfe0d66b43b6" />
 
 ---
+<br><br>
