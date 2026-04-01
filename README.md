@@ -1,4 +1,4 @@
-# Nexis WEB/WAS
+# NexisWeb
 
 **NEXIS Monitoring Platform**
 <br><br>
