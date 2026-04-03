@@ -13,8 +13,7 @@
 ---
 
 ## 2. Dashboard
-
-<img width="1280" height="822" alt="2" src="https://github.com/user-attachments/assets/43099efa-1edb-43e9-b061-8888b8cfd5a3" />
+<img width="1280" height="819" alt="다운로드" src="https://github.com/user-attachments/assets/c3387d1b-3720-4c32-810d-7ddc440cc0a9" />
 <br><br>
 
 ---
@@ -23,7 +22,8 @@
 
 * 에이전트 통신 확인 시 호스트 자동 등록
 * 갱신 간격 기준 **2회 데이터 미수집 시 Inactive 처리**
-<img width="1280" height="820" alt="3" src="https://github.com/user-attachments/assets/32c6b0a6-6b2e-40e2-b908-b6f164567753" />
+<img width="1278" height="820" alt="host" src="https://github.com/user-attachments/assets/fa979929-bef5-4090-8284-645cbd6348c5" />
+
 
 ### 호스트 상세
 
@@ -54,7 +54,7 @@
 
 ## 5. Problems
 
-<img width="1280" height="817" alt="8" src="https://github.com/user-attachments/assets/7a9f33f3-aec4-49a9-9453-ff219f48bbe7" />
+<img width="1277" height="817" alt="problem" src="https://github.com/user-attachments/assets/0c7150ff-9e95-4f40-9fd5-84a59ab2d6f1" />
 <br><br>
 
 ---
