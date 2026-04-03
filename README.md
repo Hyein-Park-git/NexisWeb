@@ -5,6 +5,17 @@
 
 ---
 
+## 설치 파일 다운로드
+
+| OS | 파일 | 크기 |
+|---|---|---|
+| Windows | [`NexisServer_Setup_v1.exe`](https://drive.google.com/file/d/1Lw-oJwMu_aeD_Clv3_C6zlBUfhukT-cU/view?usp=drive_link) | 11.98MB |
+| Linux | [`nexis-server-1.0-1.noarch.rpm`](https://drive.google.com/file/d/1v1sgtnpRE4uaNzCUMJT9vUMvZ2VfVSgj/view?usp=drive_link) | 9.10MB |
+
+<br><br>
+
+---
+
 ## 1. Login
 
 <img width="1280" height="819" alt="1" src="https://github.com/user-attachments/assets/89ad98d5-886b-46fd-8b4e-336ea8679bea" />
