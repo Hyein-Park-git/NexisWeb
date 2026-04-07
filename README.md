@@ -14,8 +14,59 @@
  
 <br><br>
 
-## 설치 방법
+## 설치 방법(Windows)
 > 자세한 내용은 [티스토리](https://hailey-p.tistory.com/22) 참조
+<br><br>
+ 
+1. `NexisWeb_Setup_v1.exe` 실행 *(관리자 권한으로 실행)*
+ 
+2. 설치 경로 지정
+ 
+3. WEB Port 및 로그 경로 지정
+ 
+4. DB 정보 입력
+ 
+5. Nexis Server 정보 입력
+ 
+6. 설치 전 선택 항목 확인
+ 
+7. 설치 완료 및 바로 시작 여부 확인
+ 
+    > 사전에 반드시 Nexis DB Setup 완료 후 실행 필요
+ 
+8. 정상 실행 시 트레이에서 확인 가능
+ 
+9. 설치 경로에서 `nexis.conf` 확인
+ 
+10. 로그 위치에서 로그 확인 가능
+ 
+11. 종료 시 트레이 아이콘에서 Exit
+ 
+<br><br>
+ 
+---
+ 
+## 설치 방법 (Linux)
+ 
+1. `nexis-web-1.0-1.noarch.rpm` 파일 확인
+ 
+2. rpm 설치
+```bash
+rpm -ivh nexis-web-1.0-1.noarch.rpm
+```
+ 
+3. 설치 완료 시 `/etc/systemd/system/nexis-web.service` 자동 등록
+ 
+4. 설치 디렉토리 `/opt/nexis-web` 내 `nexis.conf` 확인
+ 
+5. nexis-web 실행 및 프로세스 확인
+```bash
+systemctl start nexis-web
+systemctl status nexis-web
+```
+ 
+6. 설치 시 지정한 경로에서 로그 확인 가능
+
 <br><br>
 
 ---
