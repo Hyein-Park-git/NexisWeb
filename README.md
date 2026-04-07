@@ -14,6 +14,10 @@
 
 <br><br>
 
+## 설치 방법
+> 자세한 내용은 [티스토리](https://hailey-p.tistory.com/22) 참조
+<br><br>
+
 ---
 ## 둘러보기
 
