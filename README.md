@@ -13,7 +13,6 @@
 | Linux | [`nexis-server-1.0-1.noarch.rpm`](https://drive.google.com/file/d/1v1sgtnpRE4uaNzCUMJT9vUMvZ2VfVSgj/view?usp=drive_link) | 9.10MB |
 
 <br><br>
-
 ## 설치 방법
 > 자세한 내용은 [티스토리](https://hailey-p.tistory.com/22) 참조
 <br><br>
